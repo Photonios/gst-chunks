@@ -19,7 +19,7 @@ typedef struct {
 
 static GMainLoop *loop;
 
-void
+static void
 on_sigint(int signo)
 {
 	/* will cause the main loop to stop and clean up, process will exit */
@@ -27,7 +27,7 @@ on_sigint(int signo)
 		g_main_loop_quit(loop);
 }
 
-char *
+static char *
 build_pipeline(const char *url)
 {
 	char *pipeline_start = "rtspsrc name=source location=";
@@ -48,7 +48,7 @@ build_pipeline(const char *url)
 	return pipeline;
 }
 
-char *
+static char *
 build_filename()
 {
 	time_t t = time(NULL);
@@ -135,6 +135,7 @@ main(int argc, char **argv)
 	g_object_unref(data->pipeline);
 	g_object_unref(data->bin);
 	g_object_unref(loop);
+	free(data);
 
 	printf("Exiting\n");
 	return 0;
