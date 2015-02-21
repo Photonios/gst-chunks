@@ -17,6 +17,7 @@ typedef struct {
 	GstElement *destination;
 	GstElement *parser;
 	GstPad *parser_pad;
+	int is_switching;
 } PIPELINE_DATA;
 
 static GMainLoop *loop;
@@ -79,16 +80,43 @@ set_file_destination(PIPELINE_DATA *data)
 }
 
 static GstPadProbeReturn
+on_block_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
+{
+	printf("Blocked!\n");
+	return GST_PAD_PROBE_OK;
+}
+
+static GstPadProbeReturn
 on_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 {
-	GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER(info);
-	
-	if(!GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT)) {
-		printf("Keyframe!\n");
-		return GST_PAD_PROBE_REMOVE;	
+	if(user_data == NULL) {
+		fprintf(stderr, "In buffer probe callback the user data was NULL, fatal!\n");
+		
+		/* quit loop to exit application */
+		if(loop != NULL) {
+			g_main_loop_quit(loop);
+		}
+
+		return GST_PAD_PROBE_REMOVE;
 	}
 
-	return GST_PAD_PROBE_OK;
+	PIPELINE_DATA *data = (PIPELINE_DATA *) user_data;
+	GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER(info);
+	
+	/* is this frame a key frame? */
+	if(GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT)) {
+		/* no key frame, continue waiting for one */
+		return GST_PAD_PROBE_OK;	
+	}
+
+	printf("Keyframe!\n");
+
+	/* add a blocking probe to block the data flow in the pipeline */
+	gst_pad_add_probe(data->parser_pad, GST_PAD_PROBE_TYPE_BLOCK,
+		(GstPadProbeCallback) on_block_probe, data, NULL);			
+
+	/* remove this probe */
+	return GST_PAD_PROBE_REMOVE;
 }
 
 static gboolean
@@ -106,6 +134,16 @@ on_timeout(gpointer user_data)
 	}
 
 	PIPELINE_DATA *data = (PIPELINE_DATA *) user_data;
+
+	/* do not start another switch if still switching */
+	if(data->is_switching)
+		return G_SOURCE_CONTINUE;
+
+	/* in case of short timeouts, it can happen that the timeout is called
+	before we're done switching, set flag to prevent that */
+	data->is_switching = TRUE;
+
+	printf("Timeout!\n");
 
 	/* add non-blocking probe to inspect buffer contents */	
 	gst_pad_add_probe(data->parser_pad, GST_PAD_PROBE_TYPE_BUFFER,
