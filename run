@@ -1,5 +1,1 @@
-export PATH=/gstreamer/bin:$PATH
-export LD_LIBRARY_PATH=/gstreamer/bin:/gstreamer/lib:$LD_LIBRARY_PATH
-export GST_PLUGIN_SYSTEM_PATH=/gstreamer/lib
-
 ./record rtsp://192.168.2.120/ONVIF/MediaInput?profile=bb_live
