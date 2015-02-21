@@ -1,0 +1,4 @@
+#!/bin/bash
+
+export PKG_CONFIG_PATH=/gstreamer/lib/pkgconfig
+gcc `pkg-config gstreamer-1.0 --cflags` `pkg-config glib-2.0 --cflags` `pkg-config gstreamer-plugins-bad-1.0 --cflags` `pkg-config gstreamer-1.0 --libs` `pkg-config gstreamer-plugins-bad-1.0 --libs` record.c -o record
