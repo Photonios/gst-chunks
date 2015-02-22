@@ -71,9 +71,7 @@ build_pipeline(const char *url)
 	int total_len = pipeline_start_len + pipeline_end_len + url_len;
 
 	char *pipeline = ALLOC_NULL(char *, total_len + 1); /* for null terminator */
-	strcpy(pipeline, pipeline_start);
-	strcpy(pipeline + pipeline_start_len, url);
-	strcpy(pipeline + pipeline_start_len + url_len, pipeline_end);
+	snprintf(pipeline, total_len + 1, "%s%s%s", pipeline_start, url, pipeline_end);
 
 	pipeline[total_len] = '\0';
 	return pipeline;
@@ -85,10 +83,13 @@ build_filename()
 	time_t t = time(NULL);
 	struct tm current = *localtime(&t);
 	
-	int filename_len = 26; /* lol */
+	/* 5 times 2 for the month, day, hour, minutes and seconds,
+	plus 4 for the year, plus 5 for separators and 4 for .mkv*/
+	int filename_len = 23;
 
 	char *filename = ALLOC_NULL(char *, filename_len + 1);
-	snprintf(filename, filename_len, "%02d-%02d-%04d_%02d;%02d;%02d.mkv", 
+
+	snprintf(filename, filename_len + 1, "%02d-%02d-%04d_%02d;%02d;%02d.mkv", 
 		current.tm_mday, current.tm_mon + 1, current.tm_year + 1900,
 		current.tm_hour, current.tm_min, current.tm_sec);
 
