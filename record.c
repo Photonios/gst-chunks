@@ -10,6 +10,12 @@
  
 #define ALLOC_NULL(type, num) (type) calloc(1, num)
 
+#define GSTREAMER_FREE(ptr)  \
+	if(ptr != NULL) {		 \
+		g_object_unref(ptr); \
+		ptr = NULL;			 \
+	}
+
 typedef struct {
 	GstElement *pipeline;
 	GstBin *bin;
@@ -19,11 +25,30 @@ typedef struct {
 	GstElement *parser;
 	GstPad *parser_pad;
 	GstPad *muxer_pad;
-	GstPad *destination_pad;
+	GstPadProbeInfo *buffer_probe;
 	int is_switching;
 } PIPELINE_DATA;
 
 static GMainLoop *loop;
+
+static void
+free_pipeline_data(PIPELINE_DATA *data)
+{
+	GSTREAMER_FREE(data->pipeline);
+	GSTREAMER_FREE(data->bin);
+	GSTREAMER_FREE(data->source);
+	GSTREAMER_FREE(data->destination);
+	GSTREAMER_FREE(data->muxer);
+	GSTREAMER_FREE(data->parser);
+	GSTREAMER_FREE(data->parser_pad);
+	GSTREAMER_FREE(data->muxer_pad);	
+
+	data->buffer_probe = NULL;
+	data->is_switching = FALSE;
+
+	free(data);
+	data = NULL;
+}
 
 static void
 on_sigint(int signo)
@@ -49,7 +74,6 @@ build_pipeline(const char *url)
 	strcpy(pipeline, pipeline_start);
 	strcpy(pipeline + pipeline_start_len, url);
 	strcpy(pipeline + pipeline_start_len + url_len, pipeline_end);
-	printf("LEN: %i\n", total_len);
 
 	pipeline[total_len] = '\0';
 	return pipeline;
@@ -118,40 +142,17 @@ on_muxer_eos(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 	gst_element_set_state(data->muxer, GST_STATE_PLAYING);
 	gst_element_set_state(data->destination, GST_STATE_PLAYING);
 
+	/* remove the blocking buffer probe so frames can once
+	again pass through the pipeline */
+	gst_pad_remove_probe(data->parser_pad, GST_PAD_PROBE_INFO_ID(data->buffer_probe));
+	data->buffer_probe = NULL;
+
 	/* set flag to false again, so that we can switch once again */
 	data->is_switching = FALSE;
 
 	/* very important that we drop, otherwise the whole pipeline
 	will halt */
 	return GST_PAD_PROBE_DROP;
-}
-
-static GstPadProbeReturn
-on_block_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
-{
-	if(user_data == NULL) {
-		fprintf(stderr, "In block probe callback the user data was NULL, fatal!\n");
-		
-		/* quit loop to exit application */
-		if(loop != NULL) {
-			g_main_loop_quit(loop);
-		}
-
-		return GST_PAD_PROBE_REMOVE;
-	}
-
-	PIPELINE_DATA *data = (PIPELINE_DATA *) user_data;
-	gst_pad_remove_probe(pad, GST_PAD_PROBE_INFO_ID(info));
-
-	/* add an event probe (that is blocking) on the sink pad of the muxer
-	so when we sent EOS through the muxer, we'll know we receieved it */
-	gst_pad_add_probe(data->muxer_pad, GST_PAD_PROBE_TYPE_BLOCK | 
-		GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM, on_muxer_eos, data, NULL);
-
-	/* send EOS through the muxer, causing it to correctly write everything
-	to the file */
-	gst_pad_send_event(data->muxer_pad, gst_event_new_eos());
-	return GST_PAD_PROBE_OK;
 }
 
 static GstPadProbeReturn
@@ -173,17 +174,30 @@ on_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 
 	/* is this frame a key frame? */
 	if(GST_BUFFER_FLAG_IS_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT)) {
-		/* no key frame, continue waiting for one */
-		return GST_PAD_PROBE_OK;	
+		/* not a key frame, in case we have not set buffer_probe,
+		we are still waiting for a key frame, let the curent frame
+		pass. if not, block that damn thing */
+		if(data->buffer_probe == NULL) {
+			return GST_PAD_PROBE_PASS;
+		} else {
+			return GST_PAD_PROBE_OK;
+		}
 	}
 
-	/* remove the probe, prevent prbing again */
-	gst_pad_remove_probe(pad, GST_PAD_PROBE_INFO_ID(info));
+	/* setting so this probe can be removed when the
+	switch is done */
+	data->buffer_probe = info;
 
-	/* add a blocking probe to block the data flow in the pipeline */
-	gst_pad_add_probe(data->parser_pad, GST_PAD_PROBE_TYPE_BLOCK,
-		(GstPadProbeCallback) on_block_probe, data, NULL);			
+	/* add an event probe (that is blocking) on the sink pad of the muxer
+	so when we sent eos through the muxer, we'll know we receieved it */
+	gst_pad_add_probe(data->muxer_pad,  GST_PAD_PROBE_TYPE_BLOCK |
+		GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM, on_muxer_eos, data, NULL);
 
+	/* send eos through the muxer, causing it to correctly write everything
+	to the file */
+	gst_pad_send_event(data->muxer_pad, gst_event_new_eos());
+
+	/* continue blocking */
 	return GST_PAD_PROBE_OK;
 }
 
@@ -204,16 +218,19 @@ on_timeout(gpointer user_data)
 	PIPELINE_DATA *data = (PIPELINE_DATA *) user_data;
 
 	/* do not start another switch if still switching */
-	if(data->is_switching)
+	if(data->is_switching) {
 		return G_SOURCE_CONTINUE;
+	}
 
 	/* in case of short timeouts, it can happen that the timeout is called
 	before we're done switching, set flag to prevent that */
 	data->is_switching = TRUE;
 
-	/* add non-blocking probe to inspect buffer contents */	
-	gst_pad_add_probe(data->parser_pad, GST_PAD_PROBE_TYPE_BUFFER,
-		(GstPadProbeCallback) on_buffer_probe, data, NULL);		
+	/* add a blocking probe to wait for a key frame, when we
+	encounter a key frame, we'll do the switch, this way the
+	first frame in the next file is a key frame */	
+	gst_pad_add_probe(data->parser_pad, GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BLOCK,
+		on_buffer_probe, data, NULL);		
 
 	return G_SOURCE_CONTINUE;
 }
@@ -282,8 +299,12 @@ main(int argc, char **argv)
 	/* get pads of some elements that we're going to use during
 	the switching of files */
 	data->parser_pad = gst_element_get_static_pad(data->parser, "src");
-	data->destination_pad = gst_element_get_static_pad(data->destination, "sink");
 	data->muxer_pad = gst_element_get_static_pad(data->muxer, "video_0");
+
+	if(!data->parser_pad || !data->muxer_pad) {
+		fprintf(stderr, "Could not get `src` and `video_0` pads from the parser/muxer");
+		goto cleanup;
+	}
 
 	/* start playing the pipeline, causes recording to start */
 	gst_element_set_state(data->pipeline, GST_STATE_PLAYING);
@@ -309,18 +330,9 @@ cleanup:
 		fprintf(stderr, "Failed to get the pipline into the NULL state\n");
 	}
 
-	g_object_unref(data->destination);
-	g_object_unref(data->source);
-	g_object_unref(data->parser);
-	g_object_unref(data->muxer);
-	g_object_unref(data->parser_pad);
-	g_object_unref(data->muxer_pad);
-	g_object_unref(data->destination_pad);
-	g_object_unref(data->pipeline);
-	g_object_unref(data->bin);
+	free_pipeline_data(data);
 	g_object_unref(loop);
-	free(data);
 
 	printf("Exiting\n");
 	return 0;
-}	
+}
