@@ -62,7 +62,8 @@ static char *
 build_pipeline(const char *url)
 {
 	char *pipeline_start = "rtspsrc name=source location=";
-	char *pipeline_end = " latency=100 ! rtph264depay ! h264parse name=parser ! matroskamux name=muxer ! queue ! filesink name=destination";
+	char *pipeline_end = " latency=100 ! rtph264depay ! h264parse name=parser ! " \
+		"matroskamux name=muxer ! queue ! filesink name=destination";
 	
 	int pipeline_start_len = strlen(pipeline_start);
 	int pipeline_end_len = strlen(pipeline_end);
