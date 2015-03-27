@@ -1,4 +1,8 @@
 *.mkv
+*.sdf
+*.opensdf
+*.suo
+bin
 record
 run
 server
