@@ -4,9 +4,16 @@
 #include <time.h>
 
 #include <signal.h>
-#include <unistd.h>
-
 #include <gst/gst.h>
+
+#if !defined(_WIN32)
+#	include <unistd.h>
+#endif
+
+/* screw you windows */
+#if defined(_WIN32)
+#	define snprintf _snprintf
+#endif
  
 #define ALLOC_NULL(type, num) (type) calloc(1, num)
 
