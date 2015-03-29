@@ -8,7 +8,8 @@ gcc \
 	`pkg-config gstreamer-plugins-bad-1.0 --cflags` \
 	`pkg-config gstreamer-1.0 --libs` \
 	`pkg-config gstreamer-plugins-bad-1.0 --libs` \
-	chunk-recorder/chunk-recorder.c -o bin/chunk-recorder
+	-Ishared \
+	shared/gcs/dir.c shared/gcs/chunk.c shared/gcs/index.c chunk-recorder/chunk-recorder.c -o bin/chunk-recorder
 
 gcc \
 	`pkg-config gstreamer-1.0 --cflags` \
@@ -16,4 +17,5 @@ gcc \
 	`pkg-config gstreamer-plugins-bad-1.0 --cflags` \
 	`pkg-config gstreamer-1.0 --libs` \
 	`pkg-config gstreamer-plugins-bad-1.0 --libs` \
-	chunk-player/chunk-player.c -o bin/chunk-player
+	-Ishared \
+	shared/gcs/dir.c shared/gcs/chunk.c shared/gcs/index.c chunk-player/chunk-player.c -o bin/chunk-player
