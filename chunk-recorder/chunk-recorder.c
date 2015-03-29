@@ -6,6 +6,8 @@
 #include <signal.h>
 #include <gst/gst.h>
 
+#include <gcs/dir.h>
+
 #if !defined(_WIN32)
 #	include <unistd.h>
 #   include <sys/types.h>
@@ -259,15 +261,10 @@ set_directory(PIPELINE_DATA *data, char *directory)
     /* if the directory does not exists, create it,
     otherwise filesink fails */
 
-    DIR *dir = opendir(directory);
-
-    if(!dir) {
+    if(!gcs_dir_exists(directory)) {
         printf("Creating '%s' because it does not exists yet\n", directory);
-        /* r/w/s permissions for owner r/s for others */
-        mkdir(directory, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        gcs_dir_create(directory);
     }
-
-    closedir(dir);
 }
 
 int
