@@ -7,6 +7,7 @@
 #include <gst/gst.h>
 
 #include <gcs/dir.h>
+#include <gcs/mem.h>
 
 #if !defined(_WIN32)
 #	include <unistd.h>
@@ -18,8 +19,6 @@
 #if defined(_WIN32)
 #	define snprintf _snprintf
 #endif
-
-#define ALLOC_NULL(type, num) (type) calloc(1, num)
 
 #define GSTREAMER_FREE(ptr)  \
 	if(ptr != NULL) {		 \

@@ -11,6 +11,9 @@
 #include <gcs/mem.h>
 #include <gcs/adder.h>
 
+#define MAX_CHUNKS 1
+#define BASIC_PIPELINE_DESCRIPTION "concat name=concatter ! multiqueue ! xvimagesink"
+
 typedef struct {
     char *directory;
     GCS_INDEX *chunk_index;
@@ -19,23 +22,30 @@ typedef struct {
     GstElement *pipeline;
 } PLAYER_DATA;
 
-static char *
-build_pipeline(GCS_CHUNK *first_chunk)
+static GMainLoop *loop;
+
+static void
+on_sigint(int signo)
 {
-    char *pipeline_start = "concat name=c ! multiqueue ! h264parse ! avdec_h264 ! xvimagesink filesrc location=";
-    char *pipeline_end = " ! matroskademux ! c.";
+    /* will cause the main loop to stop and clean up, process will exit */
+	if(loop) {
+		g_main_loop_quit(loop);
+    }
+}
 
-    int pipeline_start_len = strlen(pipeline_start);
-    int pipeline_end_len = strlen(pipeline_end);
-    int full_path_len = strlen(first_chunk->full_path);
-
-    int total_len = pipeline_start_len + pipeline_end_len + full_path_len;
-
-    char *pipeline = ALLOC_NULL(char *, total_len + 1); /* for null terminator */
-    snprintf(pipeline, total_len + 1, "%s%s%s", pipeline_start, first_chunk->full_path, pipeline_end);
-
-    pipeline[total_len] = '\0';
-    return pipeline;
+static GstBusSyncReply
+on_pipeline_bus_message(GstBus *bus, GstMessage *message, gpointer data)
+{
+    GstMessageType message_type = GST_MESSAGE_TYPE(message);
+    switch(message_type) {
+        case GST_MESSAGE_EOS: {
+            /* will cause the main loop to stop and clean up, process will exit */
+            if(loop) {
+                g_main_loop_quit(loop);
+            }
+        } break;
+    }
+    return GST_BUS_PASS;
 }
 
 static void
@@ -62,10 +72,15 @@ player_data_free(PLAYER_DATA *data)
 int
 main(int argc, char **argv)
 {
-    gst_init(NULL, NULL);
+    /* intercept SIGINT so we can can cleanly exit */
+	signal(SIGINT, on_sigint);
+
+    /* initialize gstreamer, causes all plugins to be loaded */
+    gst_init(&argc, &argv);
 
     int result = 0;
-    PLAYER_DATA *data = NULL;
+    PLAYER_DATA *data;
+    GstBus *bus;
 
     if(argc < 2) {
         fprintf(stderr, "Usage: chunk-player [directory]\n");
@@ -73,6 +88,8 @@ main(int argc, char **argv)
         goto cleanup;
     }
 
+    /* initialize data structure that is used as a container
+    for all relevant data */
     data = ALLOC_NULL(PLAYER_DATA *, sizeof(PLAYER_DATA));
     data->directory = argv[1];
 
@@ -92,39 +109,68 @@ main(int argc, char **argv)
         goto cleanup;
     }
 
-    /* create chunk iterator that allows us to iterate over
-    all indexed chunks in the right order */
-    printf("Found %i chunks\n", gcs_index_count(data->chunk_index));
-    data->chunk_index_itr = gcs_index_iterator_new(data->chunk_index);
-
-    /* build basic pipeline */
+    /* build basic pipeline that we will add branches to */
     GError *error = NULL;
-    data->pipeline = gst_parse_launch("concat name=concatter ! multiqueue ! xvimagesink", &error);
+    data->pipeline = gst_parse_launch(BASIC_PIPELINE_DESCRIPTION, &error);
     GstElement *concatter = gst_bin_get_by_name(GST_BIN(data->pipeline), "concatter");
 
-    /* add a filesrc and matroskademux element for each chunk to the pipeline */
-    int counter = 0;
-    GCS_CHUNK *chunk = gcs_index_iterator_next(data->chunk_index_itr);
+    /* create a new branch in the pipeline for each chunk, that will link
+    to the concat element */
+
+    int chunk_count = 0;
+    GCS_CHUNK *chunk;
+
+    data->chunk_index_itr = gcs_index_iterator_new(data->chunk_index);
     while((chunk = gcs_index_iterator_next(data->chunk_index_itr)) != NULL) {
         gcs_add_chunk_to_pipeline(data->pipeline, concatter, chunk);
 
-        printf("Chunk loaded: %s\n", chunk->filename);
-
-        counter++;
-        if(counter == 10)
+        ++chunk_count;
+        if(chunk_count == MAX_CHUNKS) {
             break;
+        }
     }
 
-    /* run that bitch */
+    printf("Loaded %i/%i chunks\n", chunk_count,
+        gcs_index_count(data->chunk_index));
+
+    /* before we start, set up a handler on the pipeline's bus
+    so we can detect that we're done or ran into an error */
+    bus = gst_element_get_bus(data->pipeline);
+    gst_bus_set_sync_handler(bus, on_pipeline_bus_message, data, NULL);
+
+    /* bring the pipeline into the playing state, thus starting playback */
     gst_element_set_state(data->pipeline, GST_STATE_PLAYING);
 
-    /* run main loop */
-    GMainLoop *loop = g_main_loop_new(NULL, FALSE);
+    /* using get_state we wait for the state change to complete */
+	if(gst_element_get_state(data->pipeline, NULL, NULL, GST_CLOCK_TIME_NONE)
+		== GST_STATE_CHANGE_FAILURE) {
+		fprintf(stderr, "Failed to get the pipeline into the PLAYING state\n");
+		goto cleanup;
+	}
+
+    printf("Pipeline is playing now\n");
+
+    /* run the main loop, we will quit the main loop when EOS happens
+    on the pipeline or when SIGINT is received */
+    loop = g_main_loop_new(NULL, FALSE);
     g_main_loop_run(loop);
 
-cleanup:
-    player_data_free(data);
-    data = NULL;
+    /* if we got here, the main loop has stopped */
+    printf("Closing files and cleaning up\n");
 
+    /* we do get_state here to wait for the state change to complete */
+cleanup:
+    gst_element_set_state(data->pipeline, GST_STATE_NULL);
+    if(gst_element_get_state(data->pipeline, NULL, NULL, GST_CLOCK_TIME_NONE)
+        == GST_STATE_CHANGE_FAILURE) {
+        fprintf(stderr, "Failed to get the pipline into the NULL state\n");
+    }
+
+    if(data) {
+        player_data_free(data);
+        data = NULL;
+    }
+
+    printf("Exiting with exit code %i\n", result);
     return result;
 }
