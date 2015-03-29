@@ -340,7 +340,6 @@ cleanup:
 	}
 
 	free_pipeline_data(data);
-	g_object_unref(loop);
 
 	printf("Exiting\n");
 	return 0;
