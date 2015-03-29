@@ -67,6 +67,12 @@ gcs_index_fill(GCS_INDEX *index, char *directory)
     return chunk_count;
 }
 
+int
+gcs_index_count(GCS_INDEX *index)
+{
+    return index->chunks->len;
+}
+
 void
 gcs_index_free(GCS_INDEX *index)
 {
@@ -79,6 +85,8 @@ gcs_index_free(GCS_INDEX *index)
         /* last parameter indicates freeing of elements as well */
         g_array_free(index->chunks, 1);
     }
+
+    index = NULL;
 }
 
 GCS_INDEX_ITERATOR *
@@ -105,4 +113,15 @@ gcs_index_iterator_next(GCS_INDEX_ITERATOR *itr)
     ++itr->offset;
 
     return next;
+}
+
+void
+gcs_index_iterator_free(GCS_INDEX_ITERATOR *itr)
+{
+    if(!itr) {
+        return;
+    }
+
+    free(itr);
+    itr = NULL;
 }

@@ -18,9 +18,11 @@ typedef struct {
 
 GCS_INDEX * gcs_index_new();
 int         gcs_index_fill(GCS_INDEX *index, char *directory);
+int         gcs_index_count(GCS_INDEX *index);
 void        gcs_index_free(GCS_INDEX *index);
 
 GCS_INDEX_ITERATOR * gcs_index_iterator_new(GCS_INDEX *index);
 GCS_CHUNK *          gcs_index_iterator_next(GCS_INDEX_ITERATOR *itr);
+void                 gcs_index_iterator_free(GCS_INDEX_ITERATOR *itr);
 
 #endif /* __gst_chunks_shared_index_h */
