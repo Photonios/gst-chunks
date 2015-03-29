@@ -38,6 +38,7 @@ on_pipeline_bus_message(GstBus *bus, GstMessage *message, gpointer data)
 {
     GstMessageType message_type = GST_MESSAGE_TYPE(message);
     switch(message_type) {
+        case GST_MESSAGE_ERROR:
         case GST_MESSAGE_EOS: {
             /* will cause the main loop to stop and clean up, process will exit */
             if(loop) {
