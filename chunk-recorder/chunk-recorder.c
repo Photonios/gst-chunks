@@ -302,20 +302,16 @@ main(int argc, char **argv)
 
 	printf("Using pipeline: %s\n", pipeline_description);
 
-	/* we no longer need access to the pipeline description this */
+	/* we no longer need access to the pipeline description */
 	free(pipeline_description);
 	pipeline_description = NULL;
-
-	/* construct data structure, containing references to elements we need a lot */
 
 	PIPELINE_DATA *data = ALLOC_NULL(PIPELINE_DATA *, sizeof(PIPELINE_DATA));
 	data->pipeline = pipeline;
 	data->bin = GST_BIN(pipeline);
 
-    /* this also assures that the directory exists */
-    set_directory(data, argv[2]);
-
-	g_object_ref(pipeline); /* casting to bin, increment ref count */
+    set_directory(data, argv[2]);   /* this also assures that the directory exists */
+	g_object_ref(pipeline);         /* casting to bin, increment ref count */
 
 	data->source = gst_bin_get_by_name(data->bin, "source");
 	data->destination = gst_bin_get_by_name(data->bin, "destination");
