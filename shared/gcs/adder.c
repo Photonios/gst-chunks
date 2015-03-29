@@ -4,44 +4,68 @@
 
 #include <gcs/adder.h>
 
-char *
-build_element_name(GCS_CHUNK *chunk, char *post_fix)
-{
-    char *name = malloc(100);
-    snprintf(name, 100, "%d-%s", chunk->start_moment, post_fix);
-
-    return name;
-}
+typedef struct {
+    GstElement *source;
+    GstElement *demuxer;
+    GstElement *queue;
+    GstElement *parser;
+    GstElement *decoder;
+    GstElement *concatter;
+} CHUNK_PIPELINE_BRANCH;
 
 void
-on_pad_added(GstElement *element, GstPad *pad, GstElement *concat_element)
+on_pad_added(GstElement *element, GstPad *pad, CHUNK_PIPELINE_BRANCH *branch)
 {
-    gst_element_link_many(element, concat_element);
+    gst_element_link_many(
+        branch->demuxer,
+        branch->queue,
+        branch->parser,
+        branch->decoder,
+        branch->concatter,
+        NULL
+    );
 }
 
 void
 gcs_add_chunk_to_pipeline(GstElement *pipeline,
     GstElement *concat_elem, GCS_CHUNK *chunk)
 {
-    char *source_name = build_element_name(chunk, "filesrc");
-    char *demuxer_name = build_element_name(chunk, "matroskademux");
+    CHUNK_PIPELINE_BRANCH *branch = malloc(sizeof(CHUNK_PIPELINE_BRANCH));
 
-    GstElement *source = gst_element_factory_make("filesrc",
+    branch->source = gst_element_factory_make("filesrc",
         NULL);
 
-    GstElement *demuxer = gst_element_factory_make("matroskademux",
+    branch->demuxer = gst_element_factory_make("matroskademux",
         NULL);
 
-    GstElement *queue = gst_element_factory_make("queue",
+    branch->queue = gst_element_factory_make("queue",
         NULL);
 
-    gst_bin_add_many(GST_BIN(pipeline), source, demuxer, queue,  NULL);
-    gst_element_link_many(source, demuxer, queue, NULL);
+    branch->parser = gst_element_factory_make("h264parse",
+        NULL);
 
-    g_object_set(source, "location", chunk->full_path, NULL);
-    g_signal_connect(demuxer, "pad-added", G_CALLBACK(on_pad_added),
-        concat_elem);
+    branch->decoder = gst_element_factory_make("avdec_h264",
+        NULL);
 
-    free(source_name);
-    free(demuxer_name);
+    branch->concatter = concat_elem;
+
+    gst_bin_add_many(GST_BIN(pipeline),
+        branch->source,
+        branch->demuxer,
+        branch->queue,
+        branch->parser,
+        branch->decoder,
+        NULL
+    );
+
+    g_object_set(branch->source, "location", chunk->full_path, NULL);
+
+    /* we cannot link all elements yet since filesrc/matroskademux use
+    dynamic pads, we'll do the linking when the pads have been created */
+    g_signal_connect(branch->demuxer, "pad-added", G_CALLBACK(on_pad_added),
+        branch);
+
+    /* we do have to link filesrc and matroskademux, otherwise no
+    pads will be created */
+    gst_element_link_many(branch->source, branch->demuxer, NULL);
 }

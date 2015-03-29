@@ -99,7 +99,7 @@ main(int argc, char **argv)
 
     /* build basic pipeline */
     GError *error = NULL;
-    data->pipeline = gst_parse_launch("concat name=concatter ! multiqueue ! h264parse ! avdec_h264 ! xvimagesink", &error);
+    data->pipeline = gst_parse_launch("concat name=concatter ! multiqueue ! xvimagesink", &error);
     GstElement *concatter = gst_bin_get_by_name(GST_BIN(data->pipeline), "concatter");
 
     /* add a filesrc and matroskademux element for each chunk to the pipeline */
@@ -107,7 +107,9 @@ main(int argc, char **argv)
     GCS_CHUNK *chunk = gcs_index_iterator_next(data->chunk_index_itr);
     while((chunk = gcs_index_iterator_next(data->chunk_index_itr)) != NULL) {
         gcs_add_chunk_to_pipeline(data->pipeline, concatter, chunk);
-        //break;
+
+        printf("Chunk loaded: %s\n", chunk->filename);
+
         counter++;
         if(counter == 10)
             break;
@@ -116,8 +118,7 @@ main(int argc, char **argv)
     /* run that bitch */
     gst_element_set_state(data->pipeline, GST_STATE_PLAYING);
 
-    GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(data->pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "hoer");
-
+    /* run main loop */
     GMainLoop *loop = g_main_loop_new(NULL, FALSE);
     g_main_loop_run(loop);
 
