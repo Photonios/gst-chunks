@@ -11,7 +11,7 @@
 #include <gcs/mem.h>
 #include <gcs/adder.h>
 
-#define MAX_CHUNKS 1
+#define MAX_CHUNKS 100
 #define BASIC_PIPELINE_DESCRIPTION "concat name=concatter ! multiqueue ! xvimagesink"
 
 typedef struct {
