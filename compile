@@ -8,14 +8,12 @@ gcc \
 	`pkg-config gstreamer-plugins-bad-1.0 --cflags` \
 	`pkg-config gstreamer-1.0 --libs` \
 	`pkg-config gstreamer-plugins-bad-1.0 --libs` \
-	record.c -o bin/record
+	chunk-recorder/chunk-recorder.c -o bin/chunk-recorder
 
 gcc \
 	`pkg-config gstreamer-1.0 --cflags` \
 	`pkg-config glib-2.0 --cflags` \
 	`pkg-config gstreamer-plugins-bad-1.0 --cflags` \
-	`pkg-config gstreamer-rtsp-server-1.0 --cflags` \
 	`pkg-config gstreamer-1.0 --libs` \
 	`pkg-config gstreamer-plugins-bad-1.0 --libs` \
-	`pkg-config gstreamer-rtsp-server-1.0 --libs` \
-	server.c -o bin/server
+	chunk-player/chunk-player.c -o bin/chunk-player
