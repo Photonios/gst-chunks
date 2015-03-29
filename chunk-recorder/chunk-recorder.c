@@ -14,7 +14,7 @@
 #if defined(_WIN32)
 #	define snprintf _snprintf
 #endif
- 
+
 #define ALLOC_NULL(type, num) (type) calloc(1, num)
 
 #define GSTREAMER_FREE(ptr)  \
@@ -48,7 +48,7 @@ free_pipeline_data(PIPELINE_DATA *data)
 	GSTREAMER_FREE(data->muxer);
 	GSTREAMER_FREE(data->parser);
 	GSTREAMER_FREE(data->parser_pad);
-	GSTREAMER_FREE(data->muxer_pad);	
+	GSTREAMER_FREE(data->muxer_pad);
 
 	data->buffer_probe = NULL;
 	data->is_switching = FALSE;
@@ -71,7 +71,7 @@ build_pipeline(const char *url)
 	char *pipeline_start = "rtspsrc name=source location=";
 	char *pipeline_end = " latency=100 ! rtph264depay ! h264parse name=parser ! " \
 		"matroskamux name=muxer ! queue ! filesink name=destination";
-	
+
 	int pipeline_start_len = strlen(pipeline_start);
 	int pipeline_end_len = strlen(pipeline_end);
 	int url_len = strlen(url);
@@ -90,14 +90,14 @@ build_filename()
 {
 	time_t t = time(NULL);
 	struct tm current = *localtime(&t);
-	
+
 	/* 5 times 2 for the month, day, hour, minutes and seconds,
 	plus 4 for the year, plus 5 for separators and 4 for .mkv*/
 	int filename_len = 23;
 
 	char *filename = ALLOC_NULL(char *, filename_len + 1);
 
-	snprintf(filename, filename_len + 1, "%02d-%02d-%04d_%02d;%02d;%02d.mkv", 
+	snprintf(filename, filename_len + 1, "%02d-%02d-%04d_%02d;%02d;%02d.mkv",
 		current.tm_mday, current.tm_mon + 1, current.tm_year + 1900,
 		current.tm_hour, current.tm_min, current.tm_sec);
 
@@ -121,23 +121,23 @@ on_muxer_eos(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 {
 	if(user_data == NULL) {
 		fprintf(stderr, "In event (EOS) probe callback the user data was NULL, fatal!\n");
-		
+
 		/* quit loop to exit application */
 		if(loop != NULL) {
 			g_main_loop_quit(loop);
 		}
 
 		return GST_PAD_PROBE_REMOVE;
-	}	
-	
+	}
+
 	PIPELINE_DATA *data = (PIPELINE_DATA *) user_data;
-	
+
 	/* set the state of the muxer and filesink element
 	to NULL, causing everything to be reset to the initial
 	state (and handles closed etc) */
 	gst_element_set_state(data->destination, GST_STATE_NULL);
 	gst_element_set_state(data->muxer, GST_STATE_NULL);
-	
+
 	/* generate a new filename with the current date/time and
 	apply it on the file sink */
 	set_file_destination(data);
@@ -169,7 +169,7 @@ on_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 {
 	if(user_data == NULL) {
 		fprintf(stderr, "In buffer probe callback the user data was NULL, fatal!\n");
-		
+
 		/* quit loop to exit application */
 		if(loop != NULL) {
 			g_main_loop_quit(loop);
@@ -215,7 +215,7 @@ on_timeout(gpointer user_data)
 {
 	if(user_data == NULL) {
 		fprintf(stderr, "In timeout callback the user data was NULL, fatal!\n");
-		
+
 		/* quit loop to exit application */
 		if(loop != NULL) {
 			g_main_loop_quit(loop);
@@ -237,9 +237,9 @@ on_timeout(gpointer user_data)
 
 	/* add a blocking probe to wait for a key frame, when we
 	encounter a key frame, we'll do the switch, this way the
-	first frame in the next file is a key frame */	
+	first frame in the next file is a key frame */
 	gst_pad_add_probe(data->parser_pad, GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BLOCK,
-		on_buffer_probe, data, NULL);		
+		on_buffer_probe, data, NULL);
 
 	return G_SOURCE_CONTINUE;
 }
@@ -251,7 +251,7 @@ main(int argc, char **argv)
 	signal(SIGINT, on_sigint);
 
 	if(argc < 2) {
-		fprintf(stderr, "Usage: record [rtsp url]\n");
+		fprintf(stderr, "Usage: chunk-recorder [rtsp url] [directory]\n");
 		return 1;
 	}
 
@@ -286,7 +286,7 @@ main(int argc, char **argv)
 	data->pipeline = pipeline;
 	data->bin = GST_BIN(pipeline);
 
-	g_object_ref(pipeline); /* casting to bin, increment ref count */		
+	g_object_ref(pipeline); /* casting to bin, increment ref count */
 
 	data->source = gst_bin_get_by_name(data->bin, "source");
 	data->destination = gst_bin_get_by_name(data->bin, "destination");
@@ -304,7 +304,7 @@ main(int argc, char **argv)
 	/* create main loop and add timeout to be called every 10 seconds */
 	loop = g_main_loop_new(NULL, FALSE);
 	g_timeout_add(10000, on_timeout, data);
-	
+
 	/* get pads of some elements that we're going to use during
 	the switching of files */
 	data->parser_pad = gst_element_get_static_pad(data->parser, "src");
@@ -317,7 +317,7 @@ main(int argc, char **argv)
 
 	/* start playing the pipeline, causes recording to start */
 	gst_element_set_state(data->pipeline, GST_STATE_PLAYING);
-	
+
 	/* using get_state we wait for the state change to complete */
 	if(gst_element_get_state(data->pipeline, NULL, NULL, GST_CLOCK_TIME_NONE)
 		== GST_STATE_CHANGE_FAILURE) {
