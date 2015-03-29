@@ -8,6 +8,8 @@
 
 #if !defined(_WIN32)
 #	include <unistd.h>
+#   include <sys/types.h>
+#   include <sys/stat.h>
 #endif
 
 /* screw you windows */
@@ -33,7 +35,11 @@ typedef struct {
 	GstPad *parser_pad;
 	GstPad *muxer_pad;
 	GstPadProbeInfo *buffer_probe;
-	int is_switching;
+
+    int is_switching;
+
+    char *directory;
+    int directory_len;
 } PIPELINE_DATA;
 
 static GMainLoop *loop;
@@ -86,19 +92,19 @@ build_pipeline(const char *url)
 }
 
 static char *
-build_filename()
+build_filename(char *directory, int directory_len)
 {
 	time_t t = time(NULL);
 	struct tm current = *localtime(&t);
 
 	/* 5 times 2 for the month, day, hour, minutes and seconds,
 	plus 4 for the year, plus 5 for separators and 4 for .mkv*/
-	int filename_len = 23;
+	int filename_len = 24 + directory_len;
 
 	char *filename = ALLOC_NULL(char *, filename_len + 1);
 
-	snprintf(filename, filename_len + 1, "%02d-%02d-%04d_%02d;%02d;%02d.mkv",
-		current.tm_mday, current.tm_mon + 1, current.tm_year + 1900,
+	snprintf(filename, filename_len + 1, "%s/%02d-%02d-%04d_%02d;%02d;%02d.mkv",
+		directory, current.tm_mday, current.tm_mon + 1, current.tm_year + 1900,
 		current.tm_hour, current.tm_min, current.tm_sec);
 
 	filename[filename_len] = '\0';
@@ -108,7 +114,7 @@ build_filename()
 static void
 set_file_destination(PIPELINE_DATA *data)
 {
-	char *filename = build_filename();
+	char *filename = build_filename(data->directory, data->directory_len);
 	g_object_set(data->destination, "location", filename, NULL);
 
 	printf("Writing to: %s\n", filename);
@@ -244,13 +250,32 @@ on_timeout(gpointer user_data)
 	return G_SOURCE_CONTINUE;
 }
 
+static void
+set_directory(PIPELINE_DATA *data, char *directory)
+{
+    data->directory = directory;
+    data->directory_len = strlen(directory);
+
+    /* if the directory does not exists, create it,
+    otherwise filesink fails */
+
+    DIR *dir = opendir(directory);
+
+    if(!dir) {
+        printf("Creating '%s' because it does not exists yet\n", directory);
+        mkdir(directory, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    }
+
+    closedir(dir);
+}
+
 int
 main(int argc, char **argv)
 {
 	/* intercept SIGINT so we can can cleanly exit */
 	signal(SIGINT, on_sigint);
 
-	if(argc < 2) {
+	if(argc < 3) {
 		fprintf(stderr, "Usage: chunk-recorder [rtsp url] [directory]\n");
 		return 1;
 	}
@@ -285,6 +310,9 @@ main(int argc, char **argv)
 	PIPELINE_DATA *data = ALLOC_NULL(PIPELINE_DATA *, sizeof(PIPELINE_DATA));
 	data->pipeline = pipeline;
 	data->bin = GST_BIN(pipeline);
+
+    /* set the directory in the data structure */
+    set_directory(data, argv[2]);
 
 	g_object_ref(pipeline); /* casting to bin, increment ref count */
 
