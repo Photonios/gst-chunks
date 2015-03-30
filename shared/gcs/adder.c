@@ -53,5 +53,4 @@ gcs_add_chunk_to_pipeline(GstElement *pipeline,
     the order in which elements are linked to the concat element matters,
     if not added in the right other all chunks will be messed up */
     gst_element_link_many(queue, parser, decoder, concat_elem, NULL);
-
 }
