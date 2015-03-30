@@ -14,6 +14,8 @@ void
 gcs_add_chunk_to_pipeline(GstElement *pipeline,
     GstElement *concat_elem, GCS_CHUNK *chunk)
 {
+    GstElement *bin = gst_bin_new(NULL);
+
     GstElement *source = gst_element_factory_make("filesrc",
         NULL);
 
@@ -29,8 +31,8 @@ gcs_add_chunk_to_pipeline(GstElement *pipeline,
     GstElement *decoder = gst_element_factory_make("avdec_h264",
         NULL);
 
-    /* add all elements to the pipeline */
-    gst_bin_add_many(GST_BIN(pipeline), source, demuxer, queue, parser,
+    /* add all elements to the bin */
+    gst_bin_add_many(GST_BIN(bin), source, demuxer, queue, parser,
         decoder, NULL);
 
     g_object_set(source, "location", chunk->full_path, NULL);
@@ -38,6 +40,9 @@ gcs_add_chunk_to_pipeline(GstElement *pipeline,
     /* we cannot link the demuxer to another element yet since the demuxer
     uses dynamic pads.. we'll do that later when the pads are created */
     g_signal_connect(demuxer, "pad-added", G_CALLBACK(on_pad_added), queue);
+
+    /* add our bin to the pipeline */
+    gst_bin_add_many(GST_BIN(pipeline), bin, NULL);
 
     /* we do have to link filesrc and matroskademux, otherwise no
     pads will be created */
@@ -48,4 +53,5 @@ gcs_add_chunk_to_pipeline(GstElement *pipeline,
     the order in which elements are linked to the concat element matters,
     if not added in the right other all chunks will be messed up */
     gst_element_link_many(queue, parser, decoder, concat_elem, NULL);
+
 }
