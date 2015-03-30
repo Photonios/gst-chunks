@@ -11,10 +11,8 @@
 #include <gcs/mem.h>
 #include <gcs/adder.h>
 
-#define MAX_CHUNKS 2
+#define MAX_CHUNKS 100
 #define BASIC_PIPELINE_DESCRIPTION "concat name=concatter ! multiqueue ! xvimagesink"
-
-//#define SHOW_STATE_CHANGES
 
 typedef struct {
     char *directory;
@@ -35,31 +33,10 @@ on_sigint(int signo)
     }
 }
 
-static char *
-gst_state_name(GstState state)
-{
-    switch(state) {
-        case GST_STATE_VOID_PENDING:
-            return "GST_STATE_VOID_PENDING";
-        case GST_STATE_NULL:
-            return "GST_STATE_NULL";
-        case GST_STATE_READY:
-            return "GST_STATE_READY";
-        case GST_STATE_PAUSED:
-            return "GST_STATE_PAUSED";
-        case GST_STATE_PLAYING:
-            return "GST_STATE_PLAYING";
-        default:
-            return "GST_STATE_UNKNOWN";
-    }
-}
-
 static GstBusSyncReply
 on_pipeline_bus_message(GstBus *bus, GstMessage *message, gpointer data)
 {
     GstMessageType message_type = GST_MESSAGE_TYPE(message);
-    const char *message_source_name = GST_MESSAGE_SRC_NAME(message);
-
     switch(message_type) {
         case GST_MESSAGE_ERROR:
         case GST_MESSAGE_EOS: {
@@ -67,16 +44,6 @@ on_pipeline_bus_message(GstBus *bus, GstMessage *message, gpointer data)
             if(loop) {
                 g_main_loop_quit(loop);
             }
-        } break;
-
-        case GST_MESSAGE_STATE_CHANGED: {
-            GstState old_state, new_state, pending_state;
-            gst_message_parse_state_changed(message, &old_state, &new_state, &pending_state);
-
-#if defined(SHOW_STATE_CHANGES)
-            printf("State changing on '%s' from %s to %s\n",
-                message_source_name, gst_state_name(old_state), gst_state_name(new_state));
-#endif
         } break;
     }
     return GST_BUS_PASS;
@@ -101,38 +68,6 @@ player_data_free(PLAYER_DATA *data)
 
     free(data);
     data = NULL;
-}
-
-gboolean
-cleanup_chunk_pipeline_bin(gpointer data)
-{
-    if(!data) {
-        return;
-    }
-
-    GstElement *bin = GST_ELEMENT(data);
-    gst_element_set_state(bin, GST_STATE_NULL);
-
-    printf("NULLLLLLL\n");
-
-    return FALSE;
-}
-
-void
-on_pad_switch(GstElement *element, GstPad *old_pad, GstPad *new_pad)
-{
-    GstElement *old_bin = gst_pad_get_parent_element(old_pad);
-    const char *old_bin_name = GST_ELEMENT_NAME(old_bin);
-
-    if(new_pad != NULL) {
-        GstElement *new_bin = gst_pad_get_parent_element(new_pad);
-        const char *new_bin_name = GST_ELEMENT_NAME(new_bin);
-        printf("Switching (%s - %s)\n", old_bin_name, new_bin_name);
-    } else {
-        printf("Switching (%s)\n", old_bin_name);
-    }
-
-    g_idle_add(cleanup_chunk_pipeline_bin, old_bin);
 }
 
 int
@@ -179,8 +114,6 @@ main(int argc, char **argv)
     GError *error = NULL;
     data->pipeline = gst_parse_launch(BASIC_PIPELINE_DESCRIPTION, &error);
     GstElement *concatter = gst_bin_get_by_name(GST_BIN(data->pipeline), "concatter");
-
-    g_signal_connect(concatter, "pad-switch", G_CALLBACK(on_pad_switch), data);
 
     /* create a new branch in the pipeline for each chunk, that will link
     to the concat element */
