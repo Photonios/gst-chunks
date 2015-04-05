@@ -2,7 +2,7 @@
 
 mkdir -p bin
 
-gcc \
+gcc -g \
 	`pkg-config gstreamer-1.0 --cflags` \
 	`pkg-config glib-2.0 --cflags` \
 	`pkg-config gstreamer-plugins-bad-1.0 --cflags` \
@@ -11,7 +11,7 @@ gcc \
 	-Ishared \
 	shared/gcs/dir.c shared/gcs/chunk.c shared/gcs/index.c shared/gcs/adder.c chunk-recorder/chunk-recorder.c -o bin/chunk-recorder
 
-gcc \
+gcc -g \
 	`pkg-config gstreamer-1.0 --cflags` \
 	`pkg-config glib-2.0 --cflags` \
 	`pkg-config gstreamer-plugins-bad-1.0 --cflags` \
@@ -20,7 +20,7 @@ gcc \
 	-Ishared \
 	shared/gcs/dir.c shared/gcs/chunk.c shared/gcs/index.c shared/gcs/adder.c chunk-player/chunk-player.c -o bin/chunk-player
 
-gcc \
+gcc -g \
 	`pkg-config gstreamer-1.0 --cflags` \
 	`pkg-config glib-2.0 --cflags` \
 	`pkg-config gstreamer-plugins-bad-1.0 --cflags` \
