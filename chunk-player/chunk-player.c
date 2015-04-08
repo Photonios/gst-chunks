@@ -9,7 +9,6 @@
 #include <gcs/chunk.h>
 #include <gcs/index.h>
 #include <gcs/mem.h>
-#include <gcs/adder.h>
 
 #define GENERATE_DEBUG_GRAPHS 0
 
