@@ -13,7 +13,7 @@ typedef struct {
     time_t start_moment;
 } GCS_CHUNK;
 
-GCS_CHUNK gcs_chunk_new(char *directory, int directory_len, char *filename,
+GCS_CHUNK * gcs_chunk_new(char *directory, int directory_len, char *filename,
     int filename_len);
 
 #endif /* __gst_chunks_shared_chunk_h */

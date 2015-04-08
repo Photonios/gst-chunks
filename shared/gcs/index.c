@@ -27,7 +27,7 @@ GCS_INDEX *
 gcs_index_new()
 {
     GCS_INDEX *index = ALLOC_NULL(GCS_INDEX *, sizeof(GCS_INDEX));
-    index->chunks = g_array_new(0, 1, sizeof(GCS_CHUNK));
+    index->chunks = g_ptr_array_new();
 
     return index;
 }
@@ -52,16 +52,16 @@ gcs_index_fill(GCS_INDEX *index, char *directory)
         char *filename = &dir->d_name[0];
         int filename_len = strlen(filename);
 
-        GCS_CHUNK new_chunk = gcs_chunk_new(directory,
+        GCS_CHUNK *new_chunk = gcs_chunk_new(directory,
             directory_len, filename, filename_len);
 
-        g_array_append_val(index->chunks, new_chunk);
+        g_ptr_array_add(index->chunks, new_chunk);
     }
 
     closedir(d);
 
     /* sort chunks from older to newer */
-    g_array_sort(index->chunks, compare_chunks_start_moment);
+    g_ptr_array_sort(index->chunks, compare_chunks_start_moment);
 
     int chunk_count = (int) index->chunks->len;
     return chunk_count;
@@ -83,7 +83,7 @@ gcs_index_free(GCS_INDEX *index)
 
     if(index->chunks) {
         /* last parameter indicates freeing of elements as well */
-        g_array_free(index->chunks, 1);
+        g_ptr_array_free(index->chunks, 1);
     }
 
     index = NULL;
@@ -107,7 +107,7 @@ gcs_index_iterator_next(GCS_INDEX_ITERATOR *itr)
         return NULL;
     }
 
-    GCS_CHUNK *next = &g_array_index(itr->index->chunks, GCS_CHUNK,
+    GCS_CHUNK *next = g_ptr_array_index(itr->index->chunks,
         itr->offset);
 
     ++itr->offset;

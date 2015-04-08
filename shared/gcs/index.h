@@ -8,7 +8,7 @@
 /* explictly made a struct instead of typedef so
 new members can easily be added */
 typedef struct {
-    GArray *chunks;
+    GPtrArray *chunks;
 } GCS_INDEX;
 
 typedef struct {

@@ -3,6 +3,7 @@
 #include <unistd.h>
 
 #include <gcs/chunk.h>
+#include <gcs/mem.h>
 
 static void
 update_full_path(GCS_CHUNK *chunk, int directory_len, int filename_len)
@@ -39,20 +40,20 @@ update_start_moment(GCS_CHUNK *chunk)
     chunk->start_moment = mktime(&time_info);
 }
 
-GCS_CHUNK
+GCS_CHUNK *
 gcs_chunk_new(char *directory, int directory_len, char *filename,
     int filename_len)
 {
-    GCS_CHUNK new_chunk;
+    GCS_CHUNK *new_chunk = ALLOC_NULL(GCS_CHUNK *, sizeof(GCS_CHUNK));
 
-    memcpy(new_chunk.directory, directory, directory_len);
-    new_chunk.directory[directory_len] = '\0';
+    memcpy(new_chunk->directory, directory, directory_len);
+    new_chunk->directory[directory_len] = '\0';
 
-    memcpy(new_chunk.filename, filename, filename_len);
-    new_chunk.filename[filename_len] = '\0';
+    memcpy(new_chunk->filename, filename, filename_len);
+    new_chunk->filename[filename_len] = '\0';
 
-    update_full_path(&new_chunk, directory_len, filename_len);
-    update_start_moment(&new_chunk);
+    update_full_path(new_chunk, directory_len, filename_len);
+    update_start_moment(new_chunk);
 
     return new_chunk;
 }
