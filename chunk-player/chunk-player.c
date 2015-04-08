@@ -99,8 +99,7 @@ create_pipeline_bin(PIPELINE_DATA_BIN *data_bin, int index)
     sprintf(parser_name, "parser_%i", index);
     sprintf(decoder_name, "decoder_%i", index);
 
-    /* create bin and elements for in the bin, don't give them
-    names, gstreamer will give them unique names for us */
+    /* create bin and elements for in the bin */
     data_bin->bin = gst_bin_new(NULL);
     data_bin->source = gst_element_factory_make("filesrc", source_name);
     data_bin->demuxer = gst_element_factory_make("matroskademux", demuxer_name);
@@ -174,7 +173,7 @@ on_switch_finish(gpointer user_data)
 {
     PIPELINE_DATA *data = (PIPELINE_DATA *) user_data;
 
-    /* determine currently active bin (the bin we're switching away from */
+    /* determine currently active bin (the bin we're switching away from) */
     PIPELINE_DATA_BIN *old_bin;
     if(!data->active_bin) {
         old_bin = &data->bin1;
@@ -225,6 +224,8 @@ on_switch_finish(gpointer user_data)
     gst_element_link(old_bin->bin, data->concat);
     gst_element_set_state(old_bin->bin, GST_STATE_PLAYING);
 
+    /* if TRUE is returned, we'll execute again, don't want
+    that to happen */
     return FALSE;
 }
 
