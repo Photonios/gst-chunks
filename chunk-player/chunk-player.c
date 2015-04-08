@@ -13,10 +13,10 @@
 #define GENERATE_DEBUG_GRAPHS 0
 
 #define GSTREAMER_FREE(ptr)  \
-	if(ptr != NULL) {		 \
-		g_object_unref(ptr); \
-		ptr = NULL;			 \
-	}
+    if(ptr != NULL) {        \
+        g_object_unref(ptr); \
+        ptr = NULL;          \
+    }
 
 typedef struct {
     GstElement *bin;
@@ -28,7 +28,7 @@ typedef struct {
 } PIPELINE_DATA_BIN;
 
 typedef struct {
-	char *directory;
+    char *directory;
     GCS_INDEX *chunk_index;
     GCS_INDEX_ITERATOR *chunk_index_itr;
 
@@ -48,9 +48,9 @@ static GMainLoop *loop;
 static void
 on_sigint(int signo)
 {
-	/* will cause the main loop to stop and clean up, process will exit */
-	if(loop != NULL)
-		g_main_loop_quit(loop);
+    /* will cause the main loop to stop and clean up, process will exit */
+    if(loop != NULL)
+        g_main_loop_quit(loop);
 }
 
 static PIPELINE_DATA *
@@ -201,9 +201,9 @@ on_switch_finish(gpointer user_data)
     we get a new pad */
     gst_element_release_request_pad(data->concat, concat_sink_pad);
 
-	/* we don't need the pads any more */
-	GSTREAMER_FREE(bin_src_pad);
-	GSTREAMER_FREE(concat_sink_pad);
+    /* we don't need the pads any more */
+    GSTREAMER_FREE(bin_src_pad);
+    GSTREAMER_FREE(concat_sink_pad);
 
     /* set the entire bin to NULL so we can perform
     operations on it */
@@ -239,13 +239,13 @@ on_switch(GstElement *element, GstPad *old_pad, GstPad *new_pad, gpointer user_d
 int
 main(int argc, char **argv)
 {
-	/* intercept SIGINT so we can can cleanly exit */
-	signal(SIGINT, on_sigint);
+    /* intercept SIGINT so we can can cleanly exit */
+    signal(SIGINT, on_sigint);
 
-	if(argc < 2) {
-		fprintf(stderr, "Usage: chunk-player [directory]\n");
-		return 1;
-	}
+    if(argc < 2) {
+        fprintf(stderr, "Usage: chunk-player [directory]\n");
+        return 1;
+    }
 
     /* initialize gstreamer, set destination directory for
     generated pipeline graphs before gstreamer initialization */
@@ -255,7 +255,7 @@ main(int argc, char **argv)
     /* create structure and create basic pipeline */
     PIPELINE_DATA data;
     create_pipeline(&data);
-	data.directory = argv[1];
+    data.directory = argv[1];
 
     /* create bins that we'll switch between */
     create_pipeline_bin(&data.bin1, 1);
@@ -289,13 +289,13 @@ main(int argc, char **argv)
     g_signal_connect(data.concat, "pad-switch", G_CALLBACK(on_switch), &data);
 
     /* attempt to put the pipeline into the playing state, and wait
-	for the state change to complete */
+    for the state change to complete */
     gst_element_set_state(data.pipeline, GST_STATE_PLAYING);
-	if(gst_element_get_state(data.pipeline, NULL, NULL, GST_CLOCK_TIME_NONE)
-		== GST_STATE_CHANGE_FAILURE) {
-		fprintf(stderr, "[err] failed to get the pipeline into the PLAYING state\n");
-		goto cleanup;
-	}
+    if(gst_element_get_state(data.pipeline, NULL, NULL, GST_CLOCK_TIME_NONE)
+        == GST_STATE_CHANGE_FAILURE) {
+        fprintf(stderr, "[err] failed to get the pipeline into the PLAYING state\n");
+        goto cleanup;
+    }
 
     /* generate some debug graphs so we can see how our
     pipeline is formed */
@@ -307,19 +307,19 @@ main(int argc, char **argv)
     g_main_loop_run(loop);
 
 cleanup:
-	/* we have stopped the main loop, doesn't mean the pipeline
-	stopped */
-	gst_element_set_state(data.pipeline, GST_STATE_NULL);
-	if(gst_element_get_state(data.pipeline, NULL, NULL, GST_CLOCK_TIME_NONE)
-		== GST_STATE_CHANGE_FAILURE) {
-		fprintf(stderr, "[err] failed to get the pipeline into the NULL state\n");
-	}
+    /* we have stopped the main loop, doesn't mean the pipeline
+    stopped */
+    gst_element_set_state(data.pipeline, GST_STATE_NULL);
+    if(gst_element_get_state(data.pipeline, NULL, NULL, GST_CLOCK_TIME_NONE)
+        == GST_STATE_CHANGE_FAILURE) {
+        fprintf(stderr, "[err] failed to get the pipeline into the NULL state\n");
+    }
 
-	/* free index and index iterator */
-	gcs_index_iterator_free(data.chunk_index_itr);
-	gcs_index_free(data.chunk_index);
+    /* free index and index iterator */
+    gcs_index_iterator_free(data.chunk_index_itr);
+    gcs_index_free(data.chunk_index);
 
-	/* free rest of the data structure */
-	GSTREAMER_FREE(data.pipeline);
+    /* free rest of the data structure */
+    GSTREAMER_FREE(data.pipeline);
     return 0;
 }
