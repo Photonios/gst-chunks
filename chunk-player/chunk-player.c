@@ -37,6 +37,8 @@ typedef struct {
     GstElement *multiqueue;
     GstElement *sink;
 
+	GstClock *clock;
+
     PIPELINE_DATA_BIN bin1;
     PIPELINE_DATA_BIN bin2;
 
@@ -76,6 +78,9 @@ create_pipeline(PIPELINE_DATA *data)
 
     /* link them all together */
     gst_element_link_many(data->concat, data->multiqueue, data->sink, NULL);
+
+	/* get the pipeline's clock */
+	data->clock = gst_pipeline_get_clock(GST_PIPELINE(data->pipeline));
 
     printf("[inf] created pipeline\n");
     return data->pipeline;
@@ -216,6 +221,10 @@ on_switch_finish(gpointer user_data)
         return;
     }
 
+	if(gcs_chunk_is_gap(chunk)) {
+		chunk = gcs_index_iterator_next(data->chunk_index_itr);
+	}
+
     g_object_set(old_bin->source, "location", chunk->full_path, NULL);
     printf("[dbg] prepared chunk '%s'\n", chunk->full_path);
 
@@ -235,6 +244,22 @@ on_switch(GstElement *element, GstPad *old_pad, GstPad *new_pad, gpointer user_d
     /* perform actions on the application thread, and not on the
     streaming thread (which is where signals are emitted from */
     g_idle_add(on_switch_finish, user_data);
+}
+
+static void
+send_gap_event(PIPELINE_DATA *data, PIPELINE_DATA_BIN *data_bin, GCS_CHUNK *gap_chunk)
+{
+	printf("[dbg] sending gap event\n");
+
+	GstClockTime timestamp = gst_clock_get_time(data->clock);
+	GstClockTime duration = (GstClockTime) gap_chunk->duration;
+
+	GstPad *source_src_pad = gst_element_get_static_pad(data_bin->source, "src");
+
+	GstEvent *event = gst_event_new_latency(duration);
+	gst_pad_send_event(source_src_pad, event);
+
+	g_object_unref(source_src_pad);
 }
 
 int
@@ -280,7 +305,20 @@ main(int argc, char **argv)
     chunks */
     data.chunk_index_itr = gcs_index_iterator_new(data.chunk_index);
     GCS_CHUNK *chunk1 = gcs_index_iterator_next(data.chunk_index_itr);
-    GCS_CHUNK *chunk2 = gcs_index_iterator_next(data.chunk_index_itr);
+
+	if(gcs_chunk_is_gap(chunk1)) {
+		printf("[dbg] first chunk is a gap, sending gap\n");
+		send_gap_event(&data, &data.bin1, chunk1);
+		chunk1 = gcs_index_iterator_next(data.chunk_index_itr);
+	}
+
+	GCS_CHUNK *chunk2 = gcs_index_iterator_next(data.chunk_index_itr);
+
+	if(gcs_chunk_is_gap(chunk2)) {
+		printf("[dbg] second chunk is a gap, sending gap\n");
+		send_gap_event(&data, &data.bin2, chunk2);
+		chunk2 = gcs_index_iterator_next(data.chunk_index_itr);
+	}
 
     /* set the initial locations to the first two chunks */
     g_object_set(data.bin1.source, "location", chunk1->full_path, NULL);

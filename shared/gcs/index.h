@@ -8,7 +8,7 @@
 /* explictly made a struct instead of typedef so
 new members can easily be added */
 typedef struct {
-    GPtrArray *chunks;
+    GArray *chunks;
 } GCS_INDEX;
 
 typedef struct {
@@ -16,13 +16,15 @@ typedef struct {
     int offset;
 } GCS_INDEX_ITERATOR;
 
-GCS_INDEX * gcs_index_new();
-int         gcs_index_fill(GCS_INDEX *index, char *directory);
-int         gcs_index_count(GCS_INDEX *index);
-void        gcs_index_free(GCS_INDEX *index);
+GCS_INDEX *     gcs_index_new();
+int             gcs_index_fill(GCS_INDEX *index, char *directory);
+int             gcs_index_count(GCS_INDEX *index);
+uint64_t        gcs_index_get_date(GCS_INDEX *index);
+void            gcs_index_free(GCS_INDEX *index);
 
 GCS_INDEX_ITERATOR * gcs_index_iterator_new(GCS_INDEX *index);
 GCS_CHUNK *          gcs_index_iterator_next(GCS_INDEX_ITERATOR *itr);
+GCS_CHUNK *          gcs_index_iterator_peek(GCS_INDEX_ITERATOR *itr);
 void                 gcs_index_iterator_free(GCS_INDEX_ITERATOR *itr);
 
 #endif /* __gst_chunks_shared_index_h */

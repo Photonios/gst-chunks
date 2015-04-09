@@ -18,5 +18,7 @@ main(int argc, char **argv)
     putenv("GST_DEBUG_DUMP_DOT_DIR=.");
     gst_init(&argc, &argv);
 
+    
+
     return 0;
 }
