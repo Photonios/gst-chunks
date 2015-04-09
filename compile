@@ -6,25 +6,31 @@ gcc -g \
 	`pkg-config gstreamer-1.0 --cflags` \
 	`pkg-config glib-2.0 --cflags` \
 	`pkg-config gstreamer-plugins-bad-1.0 --cflags` \
+	`pkg-config gstreamer-pbutils-1.0 --cflags` \
 	`pkg-config gstreamer-1.0 --libs` \
 	`pkg-config gstreamer-plugins-bad-1.0 --libs` \
+	`pkg-config gstreamer-pbutils-1.0 --libs` \
 	-Ishared \
-	shared/gcs/dir.c shared/gcs/chunk.c shared/gcs/index.c chunk-recorder/chunk-recorder.c -o bin/chunk-recorder
+	shared/gcs/dir.c shared/gcs/meta.c shared/gcs/chunk.c shared/gcs/index.c chunk-recorder/chunk-recorder.c -o bin/chunk-recorder
 
 gcc -g \
 	`pkg-config gstreamer-1.0 --cflags` \
 	`pkg-config glib-2.0 --cflags` \
 	`pkg-config gstreamer-plugins-bad-1.0 --cflags` \
+	`pkg-config gstreamer-pbutils-1.0 --cflags` \
 	`pkg-config gstreamer-1.0 --libs` \
 	`pkg-config gstreamer-plugins-bad-1.0 --libs` \
+	`pkg-config gstreamer-pbutils-1.0 --libs` \
 	-Ishared \
-	shared/gcs/dir.c shared/gcs/chunk.c shared/gcs/index.c chunk-player/chunk-player.c -o bin/chunk-player
+	shared/gcs/dir.c shared/gcs/meta.c shared/gcs/chunk.c shared/gcs/index.c chunk-player/chunk-player.c -o bin/chunk-player
 
 gcc -g \
 	`pkg-config gstreamer-1.0 --cflags` \
 	`pkg-config glib-2.0 --cflags` \
 	`pkg-config gstreamer-plugins-bad-1.0 --cflags` \
+	`pkg-config gstreamer-pbutils-1.0 --cflags` \
 	`pkg-config gstreamer-1.0 --libs` \
 	`pkg-config gstreamer-plugins-bad-1.0 --libs` \
+	`pkg-config gstreamer-pbutils-1.0 --libs` \
 	-Ishared \
-	shared/gcs/dir.c shared/gcs/chunk.c shared/gcs/index.c chunk-server/chunk-server.c -o bin/chunk-server
+	shared/gcs/dir.c shared/gcs/meta.c shared/gcs/chunk.c shared/gcs/index.c chunk-server/chunk-server.c -o bin/chunk-server

@@ -37,7 +37,8 @@ update_start_moment(GCS_CHUNK *chunk)
     time_info.tm_year -= 1900;
     time_info.tm_mon -= 1;
 
-    chunk->start_moment = mktime(&time_info);
+    /* convert seconds to nano seconds */
+    chunk->start_moment = (uint64_t) (mktime(&time_info) * 1000000000);
 }
 
 GCS_CHUNK *
