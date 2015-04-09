@@ -33,9 +33,12 @@ typedef struct {
 	GstElement *destination;
 	GstElement *muxer;
 	GstElement *parser;
-	GstPad *parser_pad;
-	GstPad *muxer_pad;
+
 	GstPadProbeInfo *buffer_probe;
+
+	GstPad *parser_src_pad;
+	GstPad *muxer_sink_pad;
+	GstPad *filesink_sink_pad;
 
     int is_switching;
 
@@ -54,8 +57,8 @@ free_pipeline_data(PIPELINE_DATA *data)
 	GSTREAMER_FREE(data->destination);
 	GSTREAMER_FREE(data->muxer);
 	GSTREAMER_FREE(data->parser);
-	GSTREAMER_FREE(data->parser_pad);
-	GSTREAMER_FREE(data->muxer_pad);
+	GSTREAMER_FREE(data->parser_src_pad);
+	GSTREAMER_FREE(data->muxer_sink_pad);
 
 	data->buffer_probe = NULL;
 	data->is_switching = FALSE;
@@ -77,7 +80,7 @@ build_pipeline(const char *url)
 {
 	char *pipeline_start = "rtspsrc name=source location=";
 	char *pipeline_end = " latency=100 ! rtph264depay ! h264parse name=parser ! " \
-		"matroskamux name=muxer ! queue ! filesink name=destination";
+		"matroskamux name=muxer ! filesink name=destination";
 
 	int pipeline_start_len = strlen(pipeline_start);
 	int pipeline_end_len = strlen(pipeline_end);
@@ -123,11 +126,11 @@ set_file_destination(PIPELINE_DATA *data)
 	free(filename);
 }
 
-static GstPadProbeReturn
-on_muxer_eos(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
+static gboolean
+on_switch_file(gpointer user_data)
 {
 	if(user_data == NULL) {
-		fprintf(stderr, "In event (EOS) probe callback the user data was NULL, fatal!\n");
+		fprintf(stderr, "In the switch file callback the user data was NULL, fatal!\n");
 
 		/* quit loop to exit application */
 		if(loop != NULL) {
@@ -149,10 +152,6 @@ on_muxer_eos(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 	apply it on the file sink */
 	set_file_destination(data);
 
-	/* remove the probe, preventing us from intercepting
-	more events */
-	gst_pad_remove_probe(pad, GST_PAD_PROBE_INFO_ID(info));
-
 	/* sync state of the muxer and filesink with the parent,
 	which is PLAYING, causing everything to resume again */
 	gst_element_set_state(data->muxer, GST_STATE_PLAYING);
@@ -160,14 +159,46 @@ on_muxer_eos(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 
 	/* remove the blocking buffer probe so frames can once
 	again pass through the pipeline */
-	gst_pad_remove_probe(data->parser_pad, GST_PAD_PROBE_INFO_ID(data->buffer_probe));
+	gst_pad_remove_probe(data->parser_src_pad, GST_PAD_PROBE_INFO_ID(data->buffer_probe));
 	data->buffer_probe = NULL;
 
 	/* set flag to false again, so that we can switch once again */
 	data->is_switching = FALSE;
 
-	/* very important that we drop, otherwise the whole pipeline
-	will halt */
+	/* returning FALSE is really important, otherwise the main loop
+	will execute this function over and over again */
+	return FALSE;
+}
+
+static GstPadProbeReturn
+on_filesink_eos(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
+{
+	/* make sure we actually received EOS and not another
+	event or a buffer, if it's not EOS, pass because it
+	might be buffers that are written to the file at the
+	last moment */
+
+	if(!GST_IS_EVENT(info->data)) {
+		return GST_PAD_PROBE_PASS;
+	}
+
+	GstEvent *event = GST_EVENT(info->data);
+	GstEventType event_type = GST_EVENT_TYPE(event);
+
+	if(event_type != GST_EVENT_EOS) {
+		return GST_PAD_PROBE_PASS;
+	}
+
+	/* remove the probe, preventing us from intercepting
+	more events */
+	gst_pad_remove_probe(pad, GST_PAD_PROBE_INFO_ID(info));
+
+	/* perform the actual switch on the application thread
+	as opposed to the streaming thread */
+	g_idle_add(on_switch_file, user_data);
+
+	/* very important that we drop, otherwise, the EOS event will
+	reach the end of the pipeline, thus bringing the whole pipeline down */
 	return GST_PAD_PROBE_DROP;
 }
 
@@ -204,14 +235,14 @@ on_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 	switch is done */
 	data->buffer_probe = info;
 
-	/* add an event probe (that is blocking) on the sink pad of the muxer
+	/* add an event probe (that is blocking) on the sink pad of the filesink
 	so when we sent eos through the muxer, we'll know we receieved it */
-	gst_pad_add_probe(data->muxer_pad,  GST_PAD_PROBE_TYPE_BLOCK |
-		GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM, on_muxer_eos, data, NULL);
+	gst_pad_add_probe(data->filesink_sink_pad,  GST_PAD_PROBE_TYPE_BLOCK |
+		GST_PAD_PROBE_TYPE_EVENT_BOTH, on_filesink_eos, data, NULL);
 
 	/* send eos through the muxer, causing it to correctly write everything
 	to the file */
-	gst_pad_send_event(data->muxer_pad, gst_event_new_eos());
+	gst_pad_send_event(data->muxer_sink_pad, gst_event_new_eos());
 
 	/* continue blocking */
 	return GST_PAD_PROBE_OK;
@@ -245,7 +276,7 @@ on_timeout(gpointer user_data)
 	/* add a blocking probe to wait for a key frame, when we
 	encounter a key frame, we'll do the switch, this way the
 	first frame in the next file is a key frame */
-	gst_pad_add_probe(data->parser_pad, GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BLOCK,
+	gst_pad_add_probe(data->parser_src_pad, GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BLOCK,
 		on_buffer_probe, data, NULL);
 
 	return G_SOURCE_CONTINUE;
@@ -315,7 +346,8 @@ main(int argc, char **argv)
 	data->muxer = gst_bin_get_by_name(data->bin, "muxer");
 
 	if(!data->source || !data->destination || !data->parser || !data->muxer) {
-		fprintf(stderr, "Could not find `source`, `destination`, `muxer` or `parser` elements in the pipeline\n");
+		fprintf(stderr, "Could not find `source`, `destination`, `muxer` or \
+			`parser` elements in the pipeline\n");
 		goto cleanup;
 	}
 
@@ -328,11 +360,13 @@ main(int argc, char **argv)
 
 	/* get pads of some elements that we're going to use during
 	the switching of files */
-	data->parser_pad = gst_element_get_static_pad(data->parser, "src");
-	data->muxer_pad = gst_element_get_static_pad(data->muxer, "video_0");
+	data->parser_src_pad = gst_element_get_static_pad(data->parser, "src");
+	data->muxer_sink_pad = gst_element_get_static_pad(data->muxer, "video_0");
+	data->filesink_sink_pad = gst_element_get_static_pad(data->destination,
+		"sink");
 
-	if(!data->parser_pad || !data->muxer_pad) {
-		fprintf(stderr, "Could not get `src` and `video_0` pads from the parser/muxer");
+	if(!data->parser_src_pad || !data->muxer_sink_pad || !data->filesink_sink_pad) {
+		fprintf(stderr, "Could not get some of the pads of the elements\n");
 		goto cleanup;
 	}
 
