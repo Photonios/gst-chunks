@@ -1,6 +1,7 @@
 #ifndef __gst_chunks_shared_chunk_h
 #define __gst_chunks_shared_chunk_h
 
+#include <stdint.h>
 #include <dirent.h>
 #include <time.h>
 
@@ -10,7 +11,15 @@ typedef struct {
     char filename[PATH_MAX];
     char directory[PATH_MAX];
     char full_path[PATH_MAX];
-    time_t start_moment;
+
+    /* start and stop moments are UNIX EPOCH timestamps
+    in nanoseconds, so the amount of nanoseconds from
+    1st of January 1970 */
+    uint64_t start_moment;
+    uint64_t stop_moment;
+
+    /* nano seconds (stop_moment = start_moment + duration) */
+    uint64_t duration;
 } GCS_CHUNK;
 
 GCS_CHUNK * gcs_chunk_new(char *directory, int directory_len, char *filename,
