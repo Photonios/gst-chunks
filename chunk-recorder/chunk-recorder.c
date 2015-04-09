@@ -107,7 +107,7 @@ build_filename(char *directory, int directory_len)
 
 	char *filename = ALLOC_NULL(char *, filename_len + 1);
 
-	snprintf(filename, filename_len + 1, "%s/%02d-%02d-%04d_%02d;%02d;%02d.mkv",
+	snprintf(filename, filename_len + 1, "%s/%02d-%02d-%04d_%02d-%02d-%02d.mkv",
 		directory, current.tm_mday, current.tm_mon + 1, current.tm_year + 1900,
 		current.tm_hour, current.tm_min, current.tm_sec);
 
