@@ -67,3 +67,30 @@ gcs_chunk_new(char *directory, int directory_len, char *filename,
 
     return new_chunk;
 }
+
+GCS_CHUNK *
+gcs_chunk_new_gap(uint64_t start, uint64_t stop)
+{
+    GCS_CHUNK *new_chunk = ALLOC_NULL(GCS_CHUNK *, sizeof(GCS_CHUNK));
+
+    new_chunk->start_moment = start;
+    new_chunk->stop_moment = stop;
+    new_chunk->duration = (stop - start);
+
+    /* although we allocate using calloc, just be sure
+    this is recognized as a gap */
+    new_chunk->filename[0] = 0;
+
+    return new_chunk;
+}
+
+int
+gcs_chunk_is_gap(GCS_CHUNK *chunk)
+{
+    if(!chunk) {
+        return 0;
+    }
+
+    int is_gap = (chunk->filename[0] = 0);
+    return is_gap;
+}
