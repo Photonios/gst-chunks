@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
+#include <stdio.h>
+#include <inttypes.h>
 
 #include <gcs/mem.h>
 #include <gcs/index.h>
@@ -54,6 +56,9 @@ gcs_index_fill(GCS_INDEX *index, char *directory)
 
         GCS_CHUNK *new_chunk = gcs_chunk_new(directory,
             directory_len, filename, filename_len);
+
+        printf("[info] Loaded chunk '%s' with a duration of %u seconds\n",
+            new_chunk->filename, GST_TIME_AS_SECONDS(new_chunk->duration));
 
         g_ptr_array_add(index->chunks, new_chunk);
     }
