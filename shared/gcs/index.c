@@ -9,6 +9,7 @@
 #include <gcs/chunk.h>
 #include <gcs/time.h>
 
+/* 1.1 seconds / 1100 milliseconds */
 #define MAXIMUM_GAP_TIME 1100000000
 
 static gint

@@ -44,12 +44,38 @@ create_client_data(SERVER_DATA *server_data)
 }
 
 static void
+on_client_media_configure(GstRTSPMediaFactory *factory, GstRTSPMedia *media,
+    CLIENT_DATA *client_data)
+{
+    printf("[inf] configuring media for client\n");
+
+    
+}
+
+static void
 on_client_options_request(GstRTSPClient *client, GstRTSPContext *context,
     CLIENT_DATA *client_data)
 {
     client_data->context = context;
 
+    /* get the mount points collection of this client and create
+    a new media factory */
+    GstRTSPMountPoints *mount_points = gst_rtsp_client_get_mount_points(client);
+    GstRTSPMediaFactory *media_factory = gst_rtsp_media_factory_new();
+
+    /* hook up the media-configure signal so we can inject our own
+    pipeline */
+    g_signal_connect(media_factory, "media-configure",
+        G_CALLBACK(on_client_media_configure), client_data);
+
+    /* link the path that the client is requesting to the media factory
+    we just created, this will cause the the media-configure signal
+    to be invoked, and gives us the possibility to configure the pipeline */
+    gst_rtsp_mount_points_add_factory(mount_points,
+        context->uri->abspath, media_factory);
+
     printf("[inf] client requesting %s\n", context->uri->abspath);
+    g_object_unref(mount_points);
 }
 
 static void
