@@ -49,7 +49,7 @@ on_client_options_request(GstRTSPClient *client, GstRTSPContext *context,
 {
     client_data->context = context;
 
-    printf("[inf] client requesting %s\n", context->uri>abspath);
+    printf("[inf] client requesting %s\n", context->uri->abspath);
 }
 
 static void
@@ -58,8 +58,12 @@ on_client_connected(GstRTSPServer *server, GstRTSPClient *client,
 {
     printf("[inf] new client connected\n");
 
+    /* create a structure that represents this client, this way
+    we can keep references to important gstreamer structures */
     CLIENT_DATA *client_data = create_client_data(server_data);
 
+    /* wait for the options request from the client, which is the
+    first RTSP command that is send by the client */
     g_signal_connect(client, "options-request",
         G_CALLBACK(on_client_options_request), client_data);
 }
@@ -72,7 +76,8 @@ main(int argc, char **argv)
     putenv("GST_DEBUG_DUMP_DOT_DIR=.");
     gst_init(&argc, &argv);
 
-    /* initialze collection structure */
+    /* initialze collection structure, will hold
+    all data related to the server */
     SERVER_DATA *server_data = create_server_data();
 
     /* connect signals */
