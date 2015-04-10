@@ -9,24 +9,24 @@
 new members can easily be added */
 typedef struct {
     GArray *chunks;
-} GCS_INDEX;
+} GcsIndex;
 
 typedef struct {
-    GCS_INDEX *index;
+    GcsIndex *index;
     int offset;
-} GCS_INDEX_ITERATOR;
+} GcsIndexIterator;
 
-GCS_INDEX *     gcs_index_new();
-int             gcs_index_fill(GCS_INDEX *index, char *directory);
-int             gcs_index_count(GCS_INDEX *index);
-uint64_t        gcs_index_get_start_time(GCS_INDEX *index);
-uint64_t        gcs_index_get_end_time(GCS_INDEX *index);
-void            gcs_index_free(GCS_INDEX *index);
+GcsIndex *      gcs_index_new();
+int             gcs_index_fill(GcsIndex *index, char *directory);
+int             gcs_index_count(GcsIndex *index);
+uint64_t        gcs_index_get_start_time(GcsIndex *index);
+uint64_t        gcs_index_get_end_time(GcsIndex *index);
+void            gcs_index_free(GcsIndex *index);
 
-GCS_INDEX_ITERATOR * gcs_index_iterator_new(GCS_INDEX *index);
-GCS_CHUNK *          gcs_index_iterator_next(GCS_INDEX_ITERATOR *itr);
-GCS_CHUNK *          gcs_index_iterator_prev(GCS_INDEX_ITERATOR *itr);
-GCS_CHUNK *          gcs_index_iterator_peek(GCS_INDEX_ITERATOR *itr);
-void                 gcs_index_iterator_free(GCS_INDEX_ITERATOR *itr);
+GcsIndexIterator * gcs_index_iterator_new(GcsIndex *index);
+GcsChunk *         gcs_index_iterator_next(GcsIndexIterator *itr);
+GcsChunk *         gcs_index_iterator_prev(GcsIndexIterator *itr);
+GcsChunk *         gcs_index_iterator_peek(GcsIndexIterator *itr);
+void               gcs_index_iterator_free(GcsIndexIterator *itr);
 
 #endif /* __gst_chunks_shared_index_h */

@@ -8,7 +8,7 @@
 #include <gcs/time.h>
 
 static void
-update_full_path(GCS_CHUNK *chunk, int directory_len, int filename_len)
+update_full_path(GcsChunk *chunk, int directory_len, int filename_len)
 {
     /* todo: add proper path joining, if the directory ends with a /
     or the filename starts with a / you'll have // */
@@ -24,7 +24,7 @@ update_full_path(GCS_CHUNK *chunk, int directory_len, int filename_len)
 }
 
 static void
-update_start_moment(GCS_CHUNK *chunk)
+update_start_moment(GcsChunk *chunk)
 {
     struct tm time_info;
 
@@ -47,17 +47,17 @@ update_start_moment(GCS_CHUNK *chunk)
 }
 
 static void
-update_stop_moment(GCS_CHUNK *chunk)
+update_stop_moment(GcsChunk *chunk)
 {
     chunk->duration = gcs_meta_get_mkv_duration(chunk->full_path);
     chunk->stop_moment = chunk->start_moment + chunk->duration;
 }
 
-GCS_CHUNK
+GcsChunk
 gcs_chunk_new(char *directory, int directory_len, char *filename,
     int filename_len)
 {
-    GCS_CHUNK new_chunk;
+    GcsChunk new_chunk;
 
     memcpy(new_chunk.directory, directory, directory_len);
     new_chunk.directory[directory_len] = '\0';
@@ -72,10 +72,10 @@ gcs_chunk_new(char *directory, int directory_len, char *filename,
     return new_chunk;
 }
 
-GCS_CHUNK
+GcsChunk
 gcs_chunk_new_gap(uint64_t start, uint64_t stop)
 {
-    GCS_CHUNK new_chunk;
+    GcsChunk new_chunk;
 
     new_chunk.start_moment = start;
     new_chunk.stop_moment = stop;
@@ -89,7 +89,7 @@ gcs_chunk_new_gap(uint64_t start, uint64_t stop)
 }
 
 int
-gcs_chunk_is_gap(GCS_CHUNK *chunk)
+gcs_chunk_is_gap(GcsChunk *chunk)
 {
     if(!chunk) {
         return 0;
@@ -100,7 +100,7 @@ gcs_chunk_is_gap(GCS_CHUNK *chunk)
 }
 
 void
-gcs_chunk_print(GCS_CHUNK *chunk)
+gcs_chunk_print(GcsChunk *chunk)
 {
     if(!chunk) {
         return;

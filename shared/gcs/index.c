@@ -15,8 +15,8 @@
 static gint
 compare_chunks_start_moment(gconstpointer a, gconstpointer b)
 {
-    const GCS_CHUNK *chunk_a = (GCS_CHUNK *) a;
-    const GCS_CHUNK *chunk_b = (GCS_CHUNK *) b;
+    const GcsChunk *chunk_a = (GcsChunk *) a;
+    const GcsChunk *chunk_b = (GcsChunk *) b;
 
     if(chunk_a->start_moment < chunk_b->start_moment) {
         return -1;
@@ -30,17 +30,17 @@ compare_chunks_start_moment(gconstpointer a, gconstpointer b)
 }
 
 static void
-detect_and_insert_gaps(GCS_INDEX *index)
+detect_and_insert_gaps(GcsIndex *index)
 {
     /* create a new array to store our newly build
     index in */
-    GArray *new_index = g_array_new(0, 1, sizeof(GCS_CHUNK));
-    GCS_INDEX_ITERATOR *itr = gcs_index_iterator_new(index);
+    GArray *new_index = g_array_new(0, 1, sizeof(GcsChunk));
+    GcsIndexIterator *itr = gcs_index_iterator_new(index);
 
     /* get the start time of the index */
     uint64_t prev_chunk_stop_time = gcs_index_get_start_time(index);
 
-    GCS_CHUNK *chunk;
+    GcsChunk *chunk;
     while((chunk = gcs_index_iterator_next(itr)) != NULL) {
         /* calculate amount of nanoseconds between this chunk
         and the next one */
@@ -57,7 +57,7 @@ detect_and_insert_gaps(GCS_INDEX *index)
         if(gap > MAXIMUM_GAP_TIME) {
             /* insert a new gap into the index that is as long
             as the gap between the previous chunk and the next one */
-            GCS_CHUNK new_gap = gcs_chunk_new_gap(
+            GcsChunk new_gap = gcs_chunk_new_gap(
                 prev_chunk_stop_time, chunk->start_moment);
 
             g_array_append_val(new_index, new_gap);
@@ -75,7 +75,7 @@ detect_and_insert_gaps(GCS_INDEX *index)
     the last chunk and the end of the day */
     uint64_t gap = next_day_time - prev_chunk_stop_time;
     if(gap > MAXIMUM_GAP_TIME) {
-        GCS_CHUNK new_gap = gcs_chunk_new_gap(
+        GcsChunk new_gap = gcs_chunk_new_gap(
             prev_chunk_stop_time, next_day_time);
 
         g_array_append_val(new_index, new_gap);
@@ -87,17 +87,17 @@ detect_and_insert_gaps(GCS_INDEX *index)
     index->chunks = new_index;
 }
 
-GCS_INDEX *
+GcsIndex *
 gcs_index_new()
 {
-    GCS_INDEX *index = ALLOC_NULL(GCS_INDEX *, sizeof(GCS_INDEX));
-    index->chunks = g_array_new(FALSE, TRUE, sizeof(GCS_CHUNK));
+    GcsIndex *index = ALLOC_NULL(GcsIndex *, sizeof(GcsIndex));
+    index->chunks = g_array_new(FALSE, TRUE, sizeof(GcsChunk));
 
     return index;
 }
 
 int
-gcs_index_fill(GCS_INDEX *index, char *directory)
+gcs_index_fill(GcsIndex *index, char *directory)
 {
     int directory_len = strlen(directory);
 
@@ -116,7 +116,7 @@ gcs_index_fill(GCS_INDEX *index, char *directory)
         char *filename = &dir->d_name[0];
         int filename_len = strlen(filename);
 
-        GCS_CHUNK new_chunk = gcs_chunk_new(directory,
+        GcsChunk new_chunk = gcs_chunk_new(directory,
             directory_len, filename, filename_len);
 
         g_array_append_val(index->chunks, new_chunk);
@@ -135,17 +135,17 @@ gcs_index_fill(GCS_INDEX *index, char *directory)
 }
 
 int
-gcs_index_count(GCS_INDEX *index)
+gcs_index_count(GcsIndex *index)
 {
     return index->chunks->len;
 }
 
 static struct tm
-gcs_index_get_date(GCS_INDEX *index)
+gcs_index_get_date(GcsIndex *index)
 {
     /* grab the first chunk and its start moment, note that
     we have to convert it back to seconds (from nanoseconds) */
-    GCS_CHUNK *first_chunk = &g_array_index(index->chunks, GCS_CHUNK, 0);
+    GcsChunk *first_chunk = &g_array_index(index->chunks, GcsChunk, 0);
     time_t start_moment = (time_t) GCS_TIME_NANO_AS_SECONDS(first_chunk->start_moment);
 
     /* convert time_t to tm structure, UTC neutral */
@@ -163,7 +163,7 @@ gcs_index_get_date(GCS_INDEX *index)
 }
 
 uint64_t
-gcs_index_get_start_time(GCS_INDEX *index)
+gcs_index_get_start_time(GcsIndex *index)
 {
     if(!index || gcs_index_count(index) <= 0 ) {
         return 0;
@@ -181,7 +181,7 @@ gcs_index_get_start_time(GCS_INDEX *index)
 }
 
 uint64_t
-gcs_index_get_end_time(GCS_INDEX *index)
+gcs_index_get_end_time(GcsIndex *index)
 {
     if(!index || gcs_index_count(index) <= 0 ) {
         return 0;
@@ -202,7 +202,7 @@ gcs_index_get_end_time(GCS_INDEX *index)
 }
 
 void
-gcs_index_free(GCS_INDEX *index)
+gcs_index_free(GcsIndex *index)
 {
     /* fail silently if NULL is passed */
     if(!index) {
@@ -217,25 +217,25 @@ gcs_index_free(GCS_INDEX *index)
     index = NULL;
 }
 
-GCS_INDEX_ITERATOR *
-gcs_index_iterator_new(GCS_INDEX *index)
+GcsIndexIterator *
+gcs_index_iterator_new(GcsIndex *index)
 {
-    GCS_INDEX_ITERATOR *itr = ALLOC_NULL(GCS_INDEX_ITERATOR *,
-        sizeof(GCS_INDEX_ITERATOR));
+    GcsIndexIterator *itr = ALLOC_NULL(GcsIndexIterator *,
+        sizeof(GcsIndexIterator));
 
     itr->index = index;
     return itr;
 }
 
-GCS_CHUNK *
-gcs_index_iterator_next(GCS_INDEX_ITERATOR *itr)
+GcsChunk *
+gcs_index_iterator_next(GcsIndexIterator *itr)
 {
     /* don't go out of bounds */
     if(itr->offset > (itr->index->chunks->len - 1)) {
         return NULL;
     }
 
-    GCS_CHUNK *next = &g_array_index(itr->index->chunks, GCS_CHUNK,
+    GcsChunk *next = &g_array_index(itr->index->chunks, GcsChunk,
         itr->offset);
 
     ++itr->offset;
@@ -243,8 +243,8 @@ gcs_index_iterator_next(GCS_INDEX_ITERATOR *itr)
     return next;
 }
 
-GCS_CHUNK *
-gcs_index_iterator_prev(GCS_INDEX_ITERATOR *itr)
+GcsChunk *
+gcs_index_iterator_prev(GcsIndexIterator *itr)
 {
     /* don't go out of bounds */
     if(itr->offset == 0 && itr->index->chunks->len > 0) {
@@ -253,16 +253,16 @@ gcs_index_iterator_prev(GCS_INDEX_ITERATOR *itr)
 
     --itr->offset;
 
-    GCS_CHUNK *prev = &g_array_index(itr->index->chunks, GCS_CHUNK,
+    GcsChunk *prev = &g_array_index(itr->index->chunks, GcsChunk,
         itr->offset);
 
     return prev;
 }
 
-GCS_CHUNK *
-gcs_index_iterator_peek(GCS_INDEX_ITERATOR *itr)
+GcsChunk *
+gcs_index_iterator_peek(GcsIndexIterator *itr)
 {
-    GCS_CHUNK *chunk = gcs_index_iterator_next(itr);
+    GcsChunk *chunk = gcs_index_iterator_next(itr);
     if(chunk) {
         itr->offset--;
     }
@@ -271,7 +271,7 @@ gcs_index_iterator_peek(GCS_INDEX_ITERATOR *itr)
 }
 
 void
-gcs_index_iterator_free(GCS_INDEX_ITERATOR *itr)
+gcs_index_iterator_free(GcsIndexIterator *itr)
 {
     if(!itr) {
         return;

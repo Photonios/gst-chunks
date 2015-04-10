@@ -44,12 +44,12 @@ typedef struct {
 
     char *directory;
     int directory_len;
-} PIPELINE_DATA;
+} GcsPipelineData;
 
 static GMainLoop *loop;
 
 static void
-free_pipeline_data(PIPELINE_DATA *data)
+free_pipeline_data(GcsPipelineData *data)
 {
 	GSTREAMER_FREE(data->pipeline);
 	GSTREAMER_FREE(data->bin);
@@ -116,7 +116,7 @@ build_filename(char *directory, int directory_len)
 }
 
 static void
-set_file_destination(PIPELINE_DATA *data)
+set_file_destination(GcsPipelineData *data)
 {
 	char *filename = build_filename(data->directory, data->directory_len);
 	g_object_set(data->destination, "location", filename, NULL);
@@ -140,7 +140,7 @@ on_switch_file(gpointer user_data)
 		return GST_PAD_PROBE_REMOVE;
 	}
 
-	PIPELINE_DATA *data = (PIPELINE_DATA *) user_data;
+	GcsPipelineData *data = (GcsPipelineData *) user_data;
 
 	/* set the state of the muxer and filesink element
 	to NULL, causing everything to be reset to the initial
@@ -216,7 +216,7 @@ on_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 		return GST_PAD_PROBE_REMOVE;
 	}
 
-	PIPELINE_DATA *data = (PIPELINE_DATA *) user_data;
+	GcsPipelineData *data = (GcsPipelineData *) user_data;
 	GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER(info);
 
 	/* is this frame a key frame? */
@@ -262,7 +262,7 @@ on_timeout(gpointer user_data)
 		return G_SOURCE_REMOVE;
 	}
 
-	PIPELINE_DATA *data = (PIPELINE_DATA *) user_data;
+	GcsPipelineData *data = (GcsPipelineData *) user_data;
 
 	/* do not start another switch if still switching */
 	if(data->is_switching) {
@@ -283,7 +283,7 @@ on_timeout(gpointer user_data)
 }
 
 static void
-set_directory(PIPELINE_DATA *data, char *directory)
+set_directory(GcsPipelineData *data, char *directory)
 {
     data->directory = directory;
     data->directory_len = strlen(directory);
@@ -333,7 +333,7 @@ main(int argc, char **argv)
 	free(pipeline_description);
 	pipeline_description = NULL;
 
-	PIPELINE_DATA *data = ALLOC_NULL(PIPELINE_DATA *, sizeof(PIPELINE_DATA));
+	GcsPipelineData *data = ALLOC_NULL(GcsPipelineData *, sizeof(GcsPipelineData));
 	data->pipeline = pipeline;
 	data->bin = GST_BIN(pipeline);
 

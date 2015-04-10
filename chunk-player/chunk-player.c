@@ -25,12 +25,12 @@ typedef struct {
     GstElement *queue;
     GstElement *parser;
     GstElement *decoder;
-} PIPELINE_DATA_BIN;
+} GcsPipelineDataBin;
 
 typedef struct {
     char *directory;
-    GCS_INDEX *chunk_index;
-    GCS_INDEX_ITERATOR *chunk_index_itr;
+    GcsIndex *chunk_index;
+    GcsIndexIterator *chunk_index_itr;
 
     GstElement *pipeline;
     GstElement *concat;
@@ -39,11 +39,11 @@ typedef struct {
 
 	GstClock *clock;
 
-    PIPELINE_DATA_BIN bin1;
-    PIPELINE_DATA_BIN bin2;
+    GcsPipelineDataBin bin1;
+    GcsPipelineDataBin bin2;
 
     int active_bin;
-} PIPELINE_DATA;
+} GcsPipelineData;
 
 static GMainLoop *loop;
 
@@ -55,15 +55,15 @@ on_sigint(int signo)
         g_main_loop_quit(loop);
 }
 
-static PIPELINE_DATA *
+static GcsPipelineData *
 create_pipeline_data()
 {
-    PIPELINE_DATA *data = ALLOC_NULL(PIPELINE_DATA *, sizeof(PIPELINE_DATA *));
+    GcsPipelineData *data = ALLOC_NULL(GcsPipelineData *, sizeof(GcsPipelineData *));
     return data;
 }
 
 static GstElement *
-create_pipeline(PIPELINE_DATA *data)
+create_pipeline(GcsPipelineData *data)
 {
     /* create the pipeline and the elements, don't give them
     names, gstreamer will assign unique names to them */
@@ -86,8 +86,8 @@ create_pipeline(PIPELINE_DATA *data)
     return data->pipeline;
 }
 
-static PIPELINE_DATA_BIN *
-create_pipeline_bin(PIPELINE_DATA_BIN *data_bin, int index)
+static GcsPipelineDataBin *
+create_pipeline_bin(GcsPipelineDataBin *data_bin, int index)
 {
     /* use names we know so we can easily track elements in
     the pipeline */
@@ -144,14 +144,14 @@ create_pipeline_bin(PIPELINE_DATA_BIN *data_bin, int index)
 }
 
 static void
-link_bin(PIPELINE_DATA *data, PIPELINE_DATA_BIN *data_bin)
+link_bin(GcsPipelineData *data, GcsPipelineDataBin *data_bin)
 {
     gst_bin_add(GST_BIN(data->pipeline), data_bin->bin);
     gst_element_link(data_bin->bin, data->concat);
 }
 
 static void
-generate_debug_graphs(PIPELINE_DATA *data, const char *postfix)
+generate_debug_graphs(GcsPipelineData *data, const char *postfix)
 {
 #if GENERATE_DEBUG_GRAPHS
     char pipeline_graph_name[100];
@@ -176,10 +176,10 @@ generate_debug_graphs(PIPELINE_DATA *data, const char *postfix)
 static gboolean
 on_switch_finish(gpointer user_data)
 {
-    PIPELINE_DATA *data = (PIPELINE_DATA *) user_data;
+    GcsPipelineData *data = (GcsPipelineData *) user_data;
 
     /* determine currently active bin (the bin we're switching away from) */
-    PIPELINE_DATA_BIN *old_bin;
+    GcsPipelineDataBin *old_bin;
     if(!data->active_bin) {
         old_bin = &data->bin1;
         printf("[inf] switching from bin1 -> bin2\n");
@@ -215,7 +215,7 @@ on_switch_finish(gpointer user_data)
 
     /* get the next chunk and set the location of the filesrc
     element to the location of the chunk */
-    GCS_CHUNK *chunk = gcs_index_iterator_next(data->chunk_index_itr);
+    GcsChunk *chunk = gcs_index_iterator_next(data->chunk_index_itr);
     if(chunk == NULL) {
         printf("[inf] nearing end, not preparing next chunk\n");
         return;
@@ -247,7 +247,7 @@ on_switch(GstElement *element, GstPad *old_pad, GstPad *new_pad, gpointer user_d
 }
 
 static void
-send_gap_event(PIPELINE_DATA *data, PIPELINE_DATA_BIN *data_bin, GCS_CHUNK *gap_chunk)
+send_gap_event(GcsPipelineData *data, GcsPipelineDataBin *data_bin, GcsChunk *gap_chunk)
 {
 	printf("[dbg] sending gap event\n");
 
@@ -279,7 +279,7 @@ main(int argc, char **argv)
     gst_init(&argc, &argv);
 
     /* create structure and create basic pipeline */
-    PIPELINE_DATA data;
+    GcsPipelineData data;
     create_pipeline(&data);
     data.directory = argv[1];
 
@@ -304,7 +304,7 @@ main(int argc, char **argv)
     /* create a new chunk index iterator and get the first two
     chunks */
     data.chunk_index_itr = gcs_index_iterator_new(data.chunk_index);
-    GCS_CHUNK *chunk1 = gcs_index_iterator_next(data.chunk_index_itr);
+    GcsChunk *chunk1 = gcs_index_iterator_next(data.chunk_index_itr);
 
 	if(gcs_chunk_is_gap(chunk1)) {
 		printf("[dbg] first chunk is a gap, sending gap\n");
@@ -312,7 +312,7 @@ main(int argc, char **argv)
 		chunk1 = gcs_index_iterator_next(data.chunk_index_itr);
 	}
 
-	GCS_CHUNK *chunk2 = gcs_index_iterator_next(data.chunk_index_itr);
+	GcsChunk *chunk2 = gcs_index_iterator_next(data.chunk_index_itr);
 
 	if(gcs_chunk_is_gap(chunk2)) {
 		printf("[dbg] second chunk is a gap, sending gap\n");

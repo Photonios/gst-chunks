@@ -20,15 +20,13 @@ typedef struct {
 
     /* nano seconds (stop_moment = start_moment + duration) */
     uint64_t duration;
-} GCS_CHUNK;
+} GcsChunk;
 
-GCS_CHUNK  gcs_chunk_new(char *directory, int directory_len, char *filename,
-    int filename_len);
+GcsChunk    gcs_chunk_new(char *directory, int directory_len, char *filename,
+                int filename_len);
 
-GCS_CHUNK gcs_chunk_new_gap(uint64_t start, uint64_t stop);
-
-int gcs_chunk_is_gap(GCS_CHUNK *chunk);
-
-void gcs_chunk_print(GCS_CHUNK *chunk);
+GcsChunk    gcs_chunk_new_gap(uint64_t start, uint64_t stop);
+int         gcs_chunk_is_gap(GcsChunk *chunk);
+void        gcs_chunk_print(GcsChunk *chunk);
 
 #endif /* __gst_chunks_shared_chunk_h */
