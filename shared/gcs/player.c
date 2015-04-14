@@ -140,6 +140,7 @@ gcs_player_prepare_next_bin(GcsPlayer *player, int play)
 
     /* update with the new bin index */
     player->next_bin_index = gcs_player_get_next_bin_index(player);
+    return 1;
 }
 
 static int
@@ -217,6 +218,27 @@ gcs_player_play(GcsPlayer *player)
 {
     gcs_player_prepare(player);
     gst_element_set_state(player->pipeline, GST_STATE_PLAYING);
+}
+
+void
+gcs_player_stop(GcsPlayer *player)
+{
+    gst_element_set_state(player->pipeline, GST_STATE_NULL);
+}
+
+void
+gcs_player_free(GcsPlayer *player)
+{
+    if(!player) {
+        return;
+    }
+
+    if(player->bins) {
+        /* free entire array, and the elements */
+        g_ptr_array_free(player->bins, TRUE);
+    }
+
+    free(player);
 }
 
 GcsPlayerBin *
