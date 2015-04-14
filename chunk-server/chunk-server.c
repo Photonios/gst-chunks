@@ -11,14 +11,9 @@
 #include <gcs/index.h>
 #include <gcs/mem.h>
 #include <gcs/player.h>
+#include <gcs/gst.h>
 
 #define SERVER_PORT "8554"
-
-#define GSTREAMER_FREE(ptr)  \
-    if(ptr != NULL) {        \
-        g_object_unref(ptr); \
-        ptr = NULL;          \
-    }
 
 static GMainLoop *loop;
 

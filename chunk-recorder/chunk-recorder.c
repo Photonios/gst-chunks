@@ -8,6 +8,7 @@
 
 #include <gcs/dir.h>
 #include <gcs/mem.h>
+#include <gcs/gst.h>
 
 #if !defined(_WIN32)
 #	include <unistd.h>
@@ -19,12 +20,6 @@
 #if defined(_WIN32)
 #	define snprintf _snprintf
 #endif
-
-#define GSTREAMER_FREE(ptr)  \
-	if(ptr != NULL) {		 \
-		g_object_unref(ptr); \
-		ptr = NULL;			 \
-	}
 
 typedef struct {
 	GstElement *pipeline;

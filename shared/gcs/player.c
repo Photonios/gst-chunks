@@ -6,12 +6,7 @@
 #include <gcs/mem.h>
 #include <gcs/index.h>
 #include <gcs/player.h>
-
-#define GSTREAMER_FREE(ptr)  \
-    if(ptr != NULL) {        \
-        g_object_unref(ptr); \
-        ptr = NULL;          \
-    }
+#include <gcs/gst.h>
 
 /* prototype declarations */
 static int gcs_player_prepare_next_bin(GcsPlayer *player, int play);
