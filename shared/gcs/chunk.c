@@ -26,6 +26,14 @@ update_full_path(GcsChunk *chunk, int directory_len, int filename_len)
 static void
 update_start_moment(GcsChunk *chunk)
 {
+    /* when I started developing this, I used a different
+    filename format, detect that and fall back to the old one */
+    char *format = "%d-%d-%d_%d-%d-%d";
+    if(strstr(chunk->filename, ";") != NULL) {
+        printf("[wrn] falling back to old filename format\n");
+        format = "%d-%d-%d_%d;%d;%d";
+    }
+
     struct tm time_info;
 
     sscanf(chunk->filename, "%d-%d-%d_%d-%d-%d",
