@@ -81,6 +81,8 @@ gcs_chunk_new_gap(uint64_t start, uint64_t stop)
     new_chunk.stop_moment = stop;
     new_chunk.duration = (stop - start);
 
+    new_chunk.duration = 5000000000;
+
     /* although we allocate using calloc, just be sure
     this is recognized as a gap */
     new_chunk.filename[0] = 0;

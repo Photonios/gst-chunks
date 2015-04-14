@@ -3,6 +3,8 @@
 
 #include <gst/gst.h>
 
+#include </home/swen/Documents/gstreamer/gstreamer/plugins/elements/gstqueue.h>
+
 #include <gcs/mem.h>
 #include <gcs/index.h>
 #include <gcs/player.h>
@@ -15,6 +17,29 @@
 
 /* prototype declarations */
 static int gcs_player_prepare_next_bin(GcsPlayer *player, int play);
+
+static gboolean
+on_time_changed_in_gap_bin(GcsPlayer *player)
+{
+    /* get the current running time of the gap bin */
+    gint64 current_time;
+    gst_element_query_position(player->gap_bin->bin, GST_FORMAT_TIME, &current_time);
+
+    /* if we've reached the duration of this gap chunk,
+    send EOS so we can switch to the next chunk */
+    if(current_time >= player->gap_bin->duration) {
+        /* we can send it on any pad, but queue is easiest lol */
+        GstPad *pad = gst_element_get_static_pad(player->gap_bin->queue, "sink");
+        gst_pad_send_event(pad, gst_event_new_eos());
+        g_object_unref(pad);
+
+        /* don't call this function again */
+        return FALSE;
+    }
+
+    /* call me again */
+    return TRUE;
+}
 
 static gboolean
 on_switch_finish(gpointer user_data)
@@ -109,30 +134,49 @@ gcs_player_get_next_bin_index(GcsPlayer *player)
 static GcsChunk *
 gcs_player_get_next_chunk(GcsPlayer *player)
 {
-    GcsChunk *chunk;
-    while((chunk = gcs_index_iterator_next(player->index_itr)) != NULL) {
-        if(!gcs_chunk_is_gap(chunk)) {
-            break;
-        }
-    }
-
+    GcsChunk *chunk = gcs_index_iterator_next(player->index_itr);
     return chunk;
 }
 
 static int
 gcs_player_prepare_next_bin(GcsPlayer *player, int play)
 {
-    /* get a reference to the bin we're switching to, but
-    don't actually make the switch yet */
-    GcsPlayerBin *player_bin = g_ptr_array_index(player->bins,
-        player->next_bin_index);
-
     /* get the next chunk to switch to */
     GcsChunk *chunk = gcs_player_get_next_chunk(player);
 
+    /* get a reference to the bin we're switching to, but
+    don't actually make the switch yet */
+    GcsPlayerBin *player_bin = NULL;
+
+    /* if this is a normal chunk, switch to the next bin,
+    if not, set it to the gap bin */
+    if(gcs_chunk_is_gap(chunk)) {
+        player_bin = player->gap_bin;
+        printf("preparing gap bin\n");
+    } else {
+        player_bin = g_ptr_array_index(player->bins,
+            player->next_bin_index);
+        printf("preparing bin for %s\n", chunk->filename);
+    }
+
+    /* update the duration in the structure, this is mainly
+    for gap chunks, but useful anyways */
+    player_bin->duration = chunk->duration;
+
     /* stop bin, update filename and start it again */
     gcs_player_bin_stop(player, player_bin);
-    gcs_player_bin_set_filename(player_bin, chunk->full_path);
+
+    /* add a timeout callback if it's a gap, so we can detect
+    when to end the gap */
+    if(gcs_chunk_is_gap(chunk)) {
+        g_timeout_add(200, (GSourceFunc) on_time_changed_in_gap_bin,
+            player);
+    }
+
+    /* don't set a file name when this is a gap */
+    if(!gcs_chunk_is_gap(chunk)) {
+        gcs_player_bin_set_filename(player_bin, chunk->full_path);
+    }
 
     /* when the pipeline is initializing, we don't want the
     bins to go into the play state right away */
@@ -140,6 +184,12 @@ gcs_player_prepare_next_bin(GcsPlayer *player, int play)
 
     /* update with the new bin index */
     player->next_bin_index = gcs_player_get_next_bin_index(player);
+
+    if(gcs_chunk_is_gap(chunk)) {
+        return 0;
+    }
+
+    return 1;
 }
 
 static int
@@ -172,12 +222,19 @@ gcs_player_create_pipeline(GcsPlayer *player, const char *sink_type,
     /* add bins for context switching */
     int i;
     for(i = 0; i < GCS_PLAYER_DEFAULT_BIN_COUNT; ++i) {
-        GcsPlayerBin *new_bin = gcs_player_bin_new(enable_decoder);
+        GcsPlayerBin *new_bin = gcs_player_bin_new(enable_decoder,
+            "filesrc", "matroskademux");
 
         /* add to the pipeline bin, but don't link them yet */
         gst_bin_add(GST_BIN(player->pipeline), new_bin->bin);
         g_ptr_array_add(player->bins, new_bin);
     }
+
+    /* create the bin for creating a gap in the stream */
+    player->gap_bin = gcs_player_bin_new(enable_decoder,
+        "videotestsrc", "x264enc");
+
+    gst_bin_add(GST_BIN(player->pipeline), player->gap_bin->bin);
 
     /* hook up signals */
     g_signal_connect(player->concat, "pad-switch", G_CALLBACK(on_switch),
@@ -205,7 +262,10 @@ gcs_player_prepare(GcsPlayer *player)
 {
     /* initialize the first two bins with the first
     two chunks */
-    gcs_player_prepare_next_bin(player, FALSE);
+    if(!gcs_player_prepare_next_bin(player, FALSE)) {
+        gcs_player_prepare_next_bin(player, FALSE);
+    }
+
     gcs_player_prepare_next_bin(player, FALSE);
 
     /* little hack to make everything works */
@@ -220,13 +280,14 @@ gcs_player_play(GcsPlayer *player)
 }
 
 GcsPlayerBin *
-gcs_player_bin_new(int enable_decoder)
+gcs_player_bin_new(int enable_decoder, const char *source_name,
+    const char *demuxer_name)
 {
     GcsPlayerBin *player_bin = ALLOC_NULL(GcsPlayerBin *, sizeof(GcsPlayerBin));
 
     player_bin->bin = gst_bin_new(NULL);
-    player_bin->source = gst_element_factory_make("filesrc", NULL);
-    player_bin->demuxer = gst_element_factory_make("matroskademux", NULL);
+    player_bin->source = gst_element_factory_make(source_name, NULL);
+    player_bin->demuxer = gst_element_factory_make(demuxer_name, NULL);
     player_bin->queue = gst_element_factory_make("queue", NULL);
     player_bin->parser = gst_element_factory_make("h264parse", NULL);
 
