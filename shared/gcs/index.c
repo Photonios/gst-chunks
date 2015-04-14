@@ -61,7 +61,6 @@ detect_and_insert_gaps(GcsIndex *index)
                 prev_chunk_stop_time, chunk->start_moment);
 
             g_array_append_val(new_index, new_gap);
-            printf("adding gap!\n");
         }
 
         /* insert the chunk into the new index */

@@ -17,8 +17,6 @@ typedef struct {
     GstElement *parser;
     GstElement *decoder;
 
-    guint64 duration;
-
     int linked;
 } GcsPlayerBin;
 
@@ -29,8 +27,6 @@ typedef struct {
     GstElement *concat;
     GstElement *multiqueue;
     GstElement *sink;
-
-    GcsPlayerBin *gap_bin;
 
     GPtrArray *bins;
     int next_bin_index;
@@ -44,7 +40,6 @@ GcsPlayer *     gcs_player_new(GcsIndexIterator *index_itr,
 
 void            gcs_player_prepare(GcsPlayer *player);
 void            gcs_player_play(GcsPlayer *player);
-GcsPlayerBin *  gcs_player_bin_new(int enable_decoder, const char *source_name,
-                    const char *demuxer_name);
+GcsPlayerBin *  gcs_player_bin_new();
 
 #endif /* __gst_chunks_shared_player_h */
