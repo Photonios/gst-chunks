@@ -2,7 +2,7 @@
 
 mkdir -p bin
 
-clang -g \
+gcc -g \
 	`pkg-config gstreamer-1.0 --cflags` \
 	`pkg-config glib-2.0 --cflags` \
 	`pkg-config gstreamer-plugins-bad-1.0 --cflags` \
@@ -11,9 +11,10 @@ clang -g \
 	`pkg-config gstreamer-plugins-bad-1.0 --libs` \
 	`pkg-config gstreamer-pbutils-1.0 --libs` \
 	-Ishared \
-	shared/gcs/dir.c shared/gcs/meta.c shared/gcs/player.c shared/gcs/chunk.c shared/gcs/index.c chunk-recorder/chunk-recorder.c -o bin/chunk-recorder
+	shared/gcs/dir.c shared/gcs/meta.c shared/gcs/player.c shared/gcs/chunk.c \
+	shared/gcs/gst.c shared/gcs/index.c chunk-recorder/chunk-recorder.c -o bin/chunk-recorder
 
-clang -g \
+gcc -g \
 	`pkg-config gstreamer-1.0 --cflags` \
 	`pkg-config glib-2.0 --cflags` \
 	`pkg-config gstreamer-plugins-bad-1.0 --cflags` \
@@ -22,9 +23,10 @@ clang -g \
 	`pkg-config gstreamer-plugins-bad-1.0 --libs` \
 	`pkg-config gstreamer-pbutils-1.0 --libs` \
 	-Ishared \
-	shared/gcs/dir.c shared/gcs/meta.c shared/gcs/player.c shared/gcs/chunk.c shared/gcs/index.c chunk-player/chunk-player.c -o bin/chunk-player
+	shared/gcs/dir.c shared/gcs/meta.c shared/gcs/player.c shared/gcs/chunk.c \
+	shared/gcs/gst.c shared/gcs/index.c chunk-player/chunk-player.c -o bin/chunk-player
 
-clang -g \
+gcc -g \
 	`pkg-config gstreamer-1.0 --cflags` \
 	`pkg-config glib-2.0 --cflags` \
 	`pkg-config gstreamer-plugins-bad-1.0 --cflags` \
@@ -35,4 +37,5 @@ clang -g \
 	`pkg-config gstreamer-pbutils-1.0 --libs` \
 	`pkg-config gstreamer-rtsp-server-1.0 --libs` \
 	-Ishared \
-	shared/gcs/dir.c shared/gcs/meta.c shared/gcs/player.c shared/gcs/chunk.c shared/gcs/index.c chunk-server/chunk-server.c -o bin/chunk-server
+	shared/gcs/dir.c shared/gcs/meta.c shared/gcs/player.c shared/gcs/chunk.c \
+	shared/gcs/gst.c shared/gcs/index.c chunk-server/chunk-server.c -o bin/chunk-server
