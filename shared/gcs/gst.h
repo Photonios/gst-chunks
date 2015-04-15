@@ -7,6 +7,9 @@
         ptr = NULL;          \
     }
 
+#define GSTREAMER_DUMP_GRAPH(element, name) \
+    GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(element), GST_DEBUG_GRAPH_SHOW_ALL, name)
+
 int gcs_gst_replace_element(GstElement *bin, GstElement *left_element,
     GstElement *right_element, GstElement *old_element,
     GstElement *new_element);

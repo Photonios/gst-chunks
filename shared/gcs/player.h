@@ -9,13 +9,21 @@
 
 #define GCS_PLAYER_DEFAULT_BIN_COUNT 2
 
+typedef enum {
+    GCS_PLAYER_BIN_TYPE_CHUNK = 0,
+    GCS_PLAYER_BIN_TYPE_GAP = 1
+} GcsPlayerBinType;
+
 typedef struct {
     GstElement *bin;
     GstElement *source;
     GstElement *demuxer;
     GstElement *queue;
     GstElement *parser;
+    GstElement *capsfilter;
     GstElement *decoder;
+
+    GcsPlayerBinType type;
 
     int linked;
 } GcsPlayerBin;

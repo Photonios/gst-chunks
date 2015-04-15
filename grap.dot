@@ -1,0 +1,94 @@
+digraph pipeline {
+  rankdir=LR;
+  fontname="sans";
+  fontsize="10";
+  labelloc=t;
+  nodesep=.1;
+  ranksep=.2;
+  label="<GstBin>\nbin1\n[>]\nparent=(GstPipeline) pipeline0";
+  node [style=filled, shape=box, fontsize="9", fontname="sans", margin="0.0,0.0"];
+  edge [labelfontsize="6", fontsize="9", fontname="monospace"];
+  
+  legend [
+    pos="0,0!",
+    margin="0.05,0.05",
+    label="Legend\lElement-States: [~] void-pending, [0] null, [-] ready, [=] paused, [>] playing\lPad-Activation: [-] none, [>] push, [<] pull\lPad-Flags: [b]locked, [f]lushing, [b]locking; upper-case is set\lPad-Task: [T] has started task, [t] has paused task\l"
+,  ];
+  subgraph cluster_matroskademux260_0x1de7850 {
+    fontname="Bitstream Vera Sans";
+    fontsize="8";
+    style=filled;
+    color=black;
+
+    label="GstMatroskaDemux\nmatroskademux260\n[>]\nparent=(GstBin) bin1";
+    matroskademux260_0x1de7850_sink_0x1ddee20 [color=black, fillcolor="#aaaaff", label="sink\n[<][bfb][t]", height="0.2", style="filled,solid"];
+    matroskademux260_0x1de7850_src_0x1ddf050 [color=black, fillcolor="#ffaaaa", label="src\n[>][bfb]", height="0.2", style="filled,solid"];
+    fillcolor="#aaffaa";
+  }
+
+  matroskademux260_0x1de7850_src_0x1ddf050 -> queue258_0x7f5de04ac820_sink_0x1dde790 [label="video/x-h264\l               level: 4\l             profile: high\l          codec_data: 01640028ffe1004f676400...\l       stream-format: avc\l           alignment: au\l               width: 320\l              height: 240\l           framerate: 15000/1001\l"]
+  subgraph cluster_filesrc3_0x1de7200 {
+    fontname="Bitstream Vera Sans";
+    fontsize="8";
+    style=filled;
+    color=black;
+
+    label="GstFileSrc\nfilesrc3\n[>]\nparent=(GstBin) bin1\nlocation=\"/home/swen/Documents/recordings-1/14-04-2015_22-56-08.mkv\"";
+    filesrc3_0x1de7200_src_0x7f5ddc026350 [color=black, fillcolor="#ffaaaa", label="src\n[<][bfb]", height="0.2", style="filled,solid"];
+    fillcolor="#ffaaaa";
+  }
+
+  filesrc3_0x1de7200_src_0x7f5ddc026350 -> matroskademux260_0x1de7850_sink_0x1ddee20 [labeldistance="10", labelangle="0", label="                                                  ", taillabel="ANY", headlabel="audio/x-matroska\lvideo/x-matroska\lvideo/x-matroska-3d\laudio/webm\lvideo/webm\l"]
+  subgraph cluster_rtph264pay1_0x1df2340 {
+    fontname="Bitstream Vera Sans";
+    fontsize="8";
+    style=filled;
+    color=black;
+
+    label="GstRtpH264Pay\nrtph264pay1\n[>]\nparent=(GstBin) bin1\ntimestamp=1944796061\nseqnum=2775\nstats=application/x-rtp-payload-stats, clock-rate=(uint)90000, running-time=(guint64)8…";
+    rtph264pay1_0x1df2340_sink_0x1df6a00 [color=black, fillcolor="#aaaaff", label="sink\n[>][bfb]", height="0.2", style="filled,solid"];
+    rtph264pay1_0x1df2340_src_0x1df67d0 [color=black, fillcolor="#ffaaaa", label="src\n[>][bfb]", height="0.2", style="filled,solid"];
+    fillcolor="#aaffaa";
+  }
+
+  rtph264pay1_0x1df2340_src_0x1df67d0 -> _proxypad1286_0x1de22a0 [label="application/x-rtp\l               media: video\l          clock-rate: 90000\l       encoding-name: H264\l  packetization-mode: 1\l    profile-level-id: 640028\l  sprop-parameter-sets: \"Z2QAKK3FTYY4jFRWKmw... \"\l             payload: 96\l                ssrc: 512732293\l    timestamp-offset: 1943913791\l       seqnum-offset: 2449\l"]
+  subgraph cluster_capsfilter258_0x7f5de440bcd0 {
+    fontname="Bitstream Vera Sans";
+    fontsize="8";
+    style=filled;
+    color=black;
+
+    label="GstCapsFilter\ncapsfilter258\n[>]\nparent=(GstBin) bin1\ncaps=video/x-h264, level=(string)4, profile=(string)high, stream-format=(string)avc, …";
+    capsfilter258_0x7f5de440bcd0_sink_0x1df6370 [color=black, fillcolor="#aaaaff", label="sink\n[>][bfb]", height="0.2", style="filled,solid"];
+    capsfilter258_0x7f5de440bcd0_src_0x1df65a0 [color=black, fillcolor="#ffaaaa", label="src\n[>][bfb]", height="0.2", style="filled,solid"];
+    fillcolor="#aaffaa";
+  }
+
+  capsfilter258_0x7f5de440bcd0_src_0x1df65a0 -> rtph264pay1_0x1df2340_sink_0x1df6a00 [label="video/x-h264\l               level: 4\l             profile: high\l          codec_data: 01640028ffe1004f676400...\l       stream-format: avc\l           alignment: au\l               width: 320\l              height: 240\l           framerate: 15000/1001\l              parsed: true\l  pixel-aspect-ratio: 1/1\l"]
+  subgraph cluster_h264parse258_0x1df4bb0 {
+    fontname="Bitstream Vera Sans";
+    fontsize="8";
+    style=filled;
+    color=black;
+
+    label="GstH264Parse\nh264parse258\n[>]\nparent=(GstBin) bin1";
+    h264parse258_0x1df4bb0_sink_0x7f5ddc027d90 [color=black, fillcolor="#aaaaff", label="sink\n[>][bfb]", height="0.2", style="filled,solid"];
+    h264parse258_0x1df4bb0_src_0x1df6140 [color=black, fillcolor="#ffaaaa", label="src\n[>][bfb]", height="0.2", style="filled,solid"];
+    fillcolor="#aaffaa";
+  }
+
+  h264parse258_0x1df4bb0_src_0x1df6140 -> capsfilter258_0x7f5de440bcd0_sink_0x1df6370 [label="video/x-h264\l               level: 4\l             profile: high\l          codec_data: 01640028ffe1004f676400...\l       stream-format: avc\l           alignment: au\l               width: 320\l              height: 240\l           framerate: 15000/1001\l              parsed: true\l  pixel-aspect-ratio: 1/1\l"]
+  subgraph cluster_queue258_0x7f5de04ac820 {
+    fontname="Bitstream Vera Sans";
+    fontsize="8";
+    style=filled;
+    color=black;
+
+    label="GstQueue\nqueue258\n[>]\nparent=(GstBin) bin1";
+    queue258_0x7f5de04ac820_sink_0x1dde790 [color=black, fillcolor="#aaaaff", label="sink\n[>][bfb]", height="0.2", style="filled,solid"];
+    queue258_0x7f5de04ac820_src_0x7f5ddc027b60 [color=black, fillcolor="#ffaaaa", label="src\n[>][bfb][t]", height="0.2", style="filled,solid"];
+    fillcolor="#aaffaa";
+  }
+
+  queue258_0x7f5de04ac820_src_0x7f5ddc027b60 -> h264parse258_0x1df4bb0_sink_0x7f5ddc027d90 [label="video/x-h264\l               level: 4\l             profile: high\l          codec_data: 01640028ffe1004f676400...\l       stream-format: avc\l           alignment: au\l               width: 320\l              height: 240\l           framerate: 15000/1001\l"]
+}

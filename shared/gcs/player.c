@@ -10,6 +10,8 @@
 
 /* prototype declarations */
 static int gcs_player_prepare_next_bin(GcsPlayer *player, int play);
+static int gcs_player_get_current_bin_index(GcsPlayer *player);
+static int gcs_player_get_next_bin_index(GcsPlayer *player);
 
 static gboolean
 on_switch_finish(gpointer user_data)
@@ -24,12 +26,73 @@ static void
 on_switch(GstElement *element, GstPad *old_pad, GstPad *new_pad,
     gpointer user_data)
 {
+    /* get the seqnum offset */
+    GcsPlayer *player = GCS_PLAYER(user_data);
+    GcsPlayerBin *current_bin = g_ptr_array_index(player->bins,
+        player->next_bin_index);
+
+    guint seqnum;
+    g_object_get(current_bin->decoder, "seqnum", &seqnum, NULL);
+    printf("[inf] seqnum: %u\n", seqnum);
+
+    GcsPlayerBin *next_bin = g_ptr_array_index(player->bins, gcs_player_get_next_bin_index(player));
+    //g_object_set(next_bin->decoder, "seqnum-offset", seqnum, NULL);
+
     /* perform switching of bins on the application thread
     and not on the streaming thread, which is where signals
     are emitted on. g_idle_add will execute the specified function
     from the main thread */
 
     g_idle_add(on_switch_finish, user_data);
+}
+
+static void
+gcs_player_bin_change_elements(GcsPlayerBin *player_bin, const char *source_name,
+    const char *demuxer_name)
+{
+    /* create the new elements that we're going to inject
+    into the pipeline */
+    GstElement *new_source = gst_element_factory_make(source_name, NULL);
+    GstElement *new_demuxer = gst_element_factory_make(demuxer_name, NULL);
+
+    /* add the new elements to the bin */
+    gst_bin_add(GST_BIN(player_bin->bin), new_source);
+    gst_bin_add(GST_BIN(player_bin->bin), new_demuxer);
+
+    /* unlink the demuxer from the rest of the pipeline, and
+    unlink the source from the demuxer */
+    gst_element_unlink(player_bin->demuxer, player_bin->queue);
+    gst_element_unlink(player_bin->source, player_bin->demuxer);
+
+    /* remove the source and demuxer from the bin */
+    gst_bin_remove(GST_BIN(player_bin->bin), player_bin->source);
+    gst_bin_remove(GST_BIN(player_bin->bin), player_bin->demuxer);
+
+    /* update references in our structure */
+    player_bin->source = new_source;
+    player_bin->demuxer = new_demuxer;
+
+    /* link the new elements together */
+    gst_element_link_many(player_bin->source, player_bin->demuxer,
+        player_bin->queue, NULL);
+}
+
+static void
+gcs_player_bin_make_chunk_bin(GcsPlayerBin *player_bin)
+{
+    gcs_player_bin_change_elements(player_bin, "filesrc",
+        "matroskademux");
+
+    player_bin->type = GCS_PLAYER_BIN_TYPE_CHUNK;
+}
+
+static void
+gcs_player_bin_make_gap_bin(GcsPlayerBin *player_bin)
+{
+    gcs_player_bin_change_elements(player_bin, "videotestsrc",
+        "x264enc");
+
+    player_bin->type = GCS_PLAYER_BIN_TYPE_GAP;
 }
 
 static void
@@ -101,16 +164,23 @@ gcs_player_get_next_bin_index(GcsPlayer *player)
     return next_index;
 }
 
+/*static int
+gcs_player_get_current_bin_index(GcsPlayer *player)
+{
+    int prev_index = gcs_player_get_next_bin_index(player);
+    if(next_index > 0) {
+        prev_index--;
+    } else {
+        prev_index = player->bins->len - 1;
+    }
+
+    return prev_index;
+}  */
+
 static GcsChunk *
 gcs_player_get_next_chunk(GcsPlayer *player)
 {
-    GcsChunk *chunk;
-    while((chunk = gcs_index_iterator_next(player->index_itr)) != NULL) {
-        if(!gcs_chunk_is_gap(chunk)) {
-            break;
-        }
-    }
-
+    GcsChunk *chunk = gcs_index_iterator_next(player->index_itr);
     return chunk;
 }
 
@@ -125,13 +195,46 @@ gcs_player_prepare_next_bin(GcsPlayer *player, int play)
     /* get the next chunk to switch to */
     GcsChunk *chunk = gcs_player_get_next_chunk(player);
 
-    /* stop bin, update filename and start it again */
+        GSTREAMER_DUMP_GRAPH(player_bin->bin, "grap");
+        GstPad *sinks = gst_element_get_static_pad(player_bin->parser, "src");
+        GstCaps *caps = gst_pad_get_current_caps(sinks);
+        gchar *cappies = gst_caps_to_string((const GstCaps *) caps);
+        printf("%s\n", cappies);
+
+
+    /* make sure the bin is stopped before we're making any
+    changes to it */
     gcs_player_bin_stop(player, player_bin);
-    gcs_player_bin_set_filename(player_bin, chunk->full_path);
+
+    /* set the type of the bin (depending on the type of chunk) */
+    if(gcs_chunk_is_gap(chunk)) {
+        gcs_player_bin_make_gap_bin(player_bin);
+
+        /* temp hack to avoid waiting */
+        if(chunk->duration > 12000000000) {
+            chunk->duration = 12000000000;
+            printf("[wrn] applying temp hack, reducing gap to 12 seconds\n");
+        }
+
+        /* videotestsrc will EOS when the max-duration was reached,
+        pattern == GST_VIDEO_TEST_SRC_BLACK */
+        g_object_set(player_bin->source, "max-duration", chunk->duration, NULL);
+        g_object_set(player_bin->source, "pattern", 2, NULL);
+
+    } else {
+        gcs_player_bin_make_chunk_bin(player_bin);
+        gcs_player_bin_set_filename(player_bin, chunk->full_path);
+    }
 
     /* when the pipeline is initializing, we don't want the
     bins to go into the play state right away */
     gcs_player_bin_start(player, player_bin, play);
+
+    if(!gcs_chunk_is_gap(chunk)) {
+        printf("[inf] prepared chunk '%s'\n", chunk->filename);
+    } else {
+        printf("[inf] prepared gap\n");
+    }
 
     /* update with the new bin index */
     player->next_bin_index = gcs_player_get_next_bin_index(player);
@@ -246,21 +349,29 @@ gcs_player_bin_new(int enable_decoder)
     player_bin->demuxer = gst_element_factory_make("matroskademux", NULL);
     player_bin->queue = gst_element_factory_make("queue", NULL);
     player_bin->parser = gst_element_factory_make("h264parse", NULL);
+    player_bin->capsfilter = gst_element_factory_make("capsfilter", NULL);
 
     /* it could be that one does not want the video to be decoded,
     in that case we simply turn it into a queue element */
     if(enable_decoder) {
         player_bin->decoder = gst_element_factory_make("avdec_h264", NULL);
     } else {
-        player_bin->decoder = gst_element_factory_make("queue", NULL);
+        player_bin->decoder = gst_element_factory_make("rtph264pay", NULL);
+        g_object_set(player_bin->decoder, "pt", 96, NULL);
     }
 
     gst_bin_add_many(GST_BIN(player_bin->bin), player_bin->source,
         player_bin->demuxer, player_bin->queue, player_bin->parser,
-        player_bin->decoder, NULL);
+        player_bin->capsfilter, player_bin->decoder, NULL);
 
     gst_element_link_many(player_bin->source, player_bin->demuxer,
-        player_bin->queue, player_bin->parser, player_bin->decoder, NULL);
+        player_bin->queue, player_bin->parser, player_bin->capsfilter,
+        player_bin->decoder, NULL);
+
+    GstCaps *caps_str = gst_caps_from_string("video/x-h264, level=(string)4, profile=(string)high, stream-format=(string)avc, alignment=(string)au, width=(int)320, height=(int)240, framerate=(fraction)15000/1001, parsed=(boolean)true, pixel-aspect-ratio=(fraction)1/1");
+
+    g_object_set(player_bin->capsfilter, "caps",
+        caps_str, NULL);
 
     /* get the src pad of the decoder (last element in the bin), so
     we can create a ghost pad for it on the bin */

@@ -34,14 +34,17 @@ main(int argc, char **argv)
 	}
 
     /* initialize gstreamer */
+    putenv("GST_DEBUG_DUMP_DOT_DIR=.");
     gst_init(&argc, &argv);
 
     /* start indexing, sorting etc of the chunks */
+    printf("[inf] indexing chunks in %s\n", argv[1]);
     GcsIndex *index = gcs_index_new();
     if(gcs_index_fill(index, argv[1]) <= 0) {
         fprintf(stderr, "[err] did not find any chunks\n");
         return 1;
     }
+    printf("[inf] indexed %i chunks\n", gcs_index_count(index));
 
     /* create a new iterator for our chunk index */
     GcsIndexIterator *index_itr = gcs_index_iterator_new(index);
