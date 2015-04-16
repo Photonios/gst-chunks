@@ -10,7 +10,6 @@
 
 /* prototype declarations */
 static int gcs_player_prepare_next_bin(GcsPlayer *player, int play);
-static int gcs_player_get_current_bin_index(GcsPlayer *player);
 static int gcs_player_get_next_bin_index(GcsPlayer *player);
 
 static gboolean
@@ -26,18 +25,6 @@ static void
 on_switch(GstElement *element, GstPad *old_pad, GstPad *new_pad,
     gpointer user_data)
 {
-    /* get the seqnum offset */
-    GcsPlayer *player = GCS_PLAYER(user_data);
-    GcsPlayerBin *current_bin = g_ptr_array_index(player->bins,
-        player->next_bin_index);
-
-    guint seqnum;
-    g_object_get(current_bin->decoder, "seqnum", &seqnum, NULL);
-    printf("[inf] seqnum: %u\n", seqnum);
-
-    GcsPlayerBin *next_bin = g_ptr_array_index(player->bins, gcs_player_get_next_bin_index(player));
-    //g_object_set(next_bin->decoder, "seqnum-offset", seqnum, NULL);
-
     /* perform switching of bins on the application thread
     and not on the streaming thread, which is where signals
     are emitted on. g_idle_add will execute the specified function
@@ -164,19 +151,6 @@ gcs_player_get_next_bin_index(GcsPlayer *player)
     return next_index;
 }
 
-/*static int
-gcs_player_get_current_bin_index(GcsPlayer *player)
-{
-    int prev_index = gcs_player_get_next_bin_index(player);
-    if(next_index > 0) {
-        prev_index--;
-    } else {
-        prev_index = player->bins->len - 1;
-    }
-
-    return prev_index;
-}  */
-
 static GcsChunk *
 gcs_player_get_next_chunk(GcsPlayer *player)
 {
@@ -194,13 +168,6 @@ gcs_player_prepare_next_bin(GcsPlayer *player, int play)
 
     /* get the next chunk to switch to */
     GcsChunk *chunk = gcs_player_get_next_chunk(player);
-
-        GSTREAMER_DUMP_GRAPH(player_bin->bin, "grap");
-        GstPad *sinks = gst_element_get_static_pad(player_bin->parser, "src");
-        GstCaps *caps = gst_pad_get_current_caps(sinks);
-        gchar *cappies = gst_caps_to_string((const GstCaps *) caps);
-        printf("%s\n", cappies);
-
 
     /* make sure the bin is stopped before we're making any
     changes to it */
@@ -356,8 +323,7 @@ gcs_player_bin_new(int enable_decoder)
     if(enable_decoder) {
         player_bin->decoder = gst_element_factory_make("avdec_h264", NULL);
     } else {
-        player_bin->decoder = gst_element_factory_make("rtph264pay", NULL);
-        g_object_set(player_bin->decoder, "pt", 96, NULL);
+        player_bin->decoder = gst_element_factory_make("queue", NULL);
     }
 
     gst_bin_add_many(GST_BIN(player_bin->bin), player_bin->source,
@@ -367,11 +333,6 @@ gcs_player_bin_new(int enable_decoder)
     gst_element_link_many(player_bin->source, player_bin->demuxer,
         player_bin->queue, player_bin->parser, player_bin->capsfilter,
         player_bin->decoder, NULL);
-
-    GstCaps *caps_str = gst_caps_from_string("video/x-h264, level=(string)4, profile=(string)high, stream-format=(string)avc, alignment=(string)au, width=(int)320, height=(int)240, framerate=(fraction)15000/1001, parsed=(boolean)true, pixel-aspect-ratio=(fraction)1/1");
-
-    g_object_set(player_bin->capsfilter, "caps",
-        caps_str, NULL);
 
     /* get the src pad of the decoder (last element in the bin), so
     we can create a ghost pad for it on the bin */
