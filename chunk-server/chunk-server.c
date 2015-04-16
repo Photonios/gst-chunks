@@ -78,7 +78,6 @@ on_client_media_configure(GstRTSPMediaFactory *factory, GstRTSPMedia *media,
     GstPipeline *pipeline = GST_PIPELINE(ppp);
 
     gcs_player_prepare(client_data->server_data->player);
-    //gst_rtsp_media_take_pipeline(media, pipeline);
 
     GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(client_data->server_data->player->pipeline),
         GST_DEBUG_GRAPH_SHOW_ALL, "hallo");
@@ -170,7 +169,7 @@ main(int argc, char **argv)
     /* creating a new index and fill it with chunks from
     a directory */
     GcsIndex *index = gcs_index_new();
-    if(gcs_index_fill(index, "../recordings-1") <= 0) {
+    if(gcs_index_fill(index, "../recordings-3") <= 0) {
         fprintf(stderr, "[err] did not find any chunks\n");
         return 1;
     }
@@ -179,8 +178,8 @@ main(int argc, char **argv)
     GcsIndexIterator *index_itr = gcs_index_iterator_new(index);
 
     /* create new chunk player with no decoder */
-    server_data->player = gcs_player_new(index_itr, "queue", "pay0", FALSE);
-    
+    server_data->player = gcs_player_new(index_itr, "rtph264pay", "pay0", FALSE);
+    g_object_set(server_data->player->sink, "pt", 96, NULL);
 
     /* start server */
     gst_rtsp_server_attach(server_data->server, NULL);
