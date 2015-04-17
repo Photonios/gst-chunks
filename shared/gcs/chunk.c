@@ -36,7 +36,7 @@ update_start_moment(GcsChunk *chunk)
 
     struct tm time_info;
 
-    sscanf(chunk->filename, "%d-%d-%d_%d-%d-%d",
+    sscanf(chunk->filename, format,
         &time_info.tm_mday,
         &time_info.tm_mon,
         &time_info.tm_year,

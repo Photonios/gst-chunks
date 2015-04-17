@@ -48,6 +48,7 @@ GcsPlayer *     gcs_player_new(GcsIndexIterator *index_itr,
 
 void            gcs_player_prepare(GcsPlayer *player);
 void            gcs_player_play(GcsPlayer *player);
+void            gcs_player_connect_signal(GcsPlayer *player, GCallback callback, gpointer user_data);
 void            gcs_player_stop(GcsPlayer *player);
 void            gcs_player_free(GcsPlayer *player);
 GcsPlayerBin *  gcs_player_bin_new();

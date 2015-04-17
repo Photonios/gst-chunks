@@ -279,6 +279,13 @@ gcs_player_prepare(GcsPlayer *player)
 }
 
 void
+gcs_player_connect_signal(GcsPlayer *player, GCallback callback, gpointer user_data)
+{
+    g_signal_connect(player->concat, "pad-switch", G_CALLBACK(callback),
+      user_data);
+}
+
+void
 gcs_player_play(GcsPlayer *player)
 {
     gcs_player_prepare(player);
