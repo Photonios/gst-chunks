@@ -53,11 +53,7 @@ gcs_rtsp_is_switch_message(GstRTSPMessage *message)
         return 0;
     }
 
-    if(method != GST_RTSP_OPTIONS) {
-        return 0;
-    }
-
-    if(strcmp(uri, "switch") != 0) {
+    if(method != GST_RTSP_OPTIONS || strcmp(uri, "switch") != 0) {
         return 0;
     }
 
@@ -67,16 +63,9 @@ gcs_rtsp_is_switch_message(GstRTSPMessage *message)
 static void
 on_rtsp_message_received(GstRTSPSrc *src, GstRTSPMessage *msg, gpointer user_data)
 {
-    printf("[inf] rtsp message received\n");
-    if(gcs_rtsp_is_switch_message(msg)) {
-        printf("SWIIIIITCHING\n");
+    if(!gcs_rtsp_is_switch_message(msg)) {
+        return;
     }
-}
-
-static void
-on_rtsp_message_sent(GstRTSPSrc *src, GstRTSPMessage *msg, gpointer user_data)
-{
-    printf("[inf] rtsp message sent\n");
 }
 
 void
@@ -125,9 +114,6 @@ gcs_rtsp_player_new(const char *rtsp_url)
 
     g_signal_connect(player->source, "message-received",
         G_CALLBACK(on_rtsp_message_received), player);
-
-    g_signal_connect(player->source, "message-sent",
-        G_CALLBACK(on_rtsp_message_sent), player);
 
     return player;
 }
