@@ -148,6 +148,8 @@ gcs_chunk_server_client_init_player(GcsChunkServerClient *client)
     http://www.iana.org/assignments/rtp-parameters/rtp-parameters.xhtml */
     g_object_set(client->player->sink, "pt", 96, NULL);
 
+    g_object_set(client->player->concat, "fixed-stop-time", 86400000000000, NULL);
+
     /* hook up a signal so we get notified when switching happens
     between chunks */
     gcs_player_connect_signal(client->player, G_CALLBACK(on_switch), client);
