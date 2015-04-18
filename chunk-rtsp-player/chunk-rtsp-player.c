@@ -16,6 +16,7 @@
 
 typedef struct {
     GstElement *pipeline;
+    GstElement *container;
     GstElement *source;
     GstElement *depay;
     GstElement *parser;
@@ -67,16 +68,9 @@ gcs_rtsp_is_switch_message(GstRTSPMessage *message)
 static void
 on_rtsp_message_received(GstRTSPSrc *src, GstRTSPMessage *msg, gpointer user_data)
 {
-    printf("[inf] rtsp message received\n");
-    if(gcs_rtsp_is_switch_message(msg)) {
-        printf("SWIIIIITCHING\n");
+    if(!gcs_rtsp_is_switch_message(msg)) {
+        return;
     }
-}
-
-static void
-on_rtsp_message_sent(GstRTSPSrc *src, GstRTSPMessage *msg, gpointer user_data)
-{
-    printf("[inf] rtsp message sent\n");
 }
 
 void
@@ -101,33 +95,73 @@ gcs_rtsp_player_play(GcsRtspPlayer *player)
     gst_element_set_state(player->pipeline, GST_STATE_PLAYING);
 }
 
+static void
+on_rtspsrc_pad_added(GstElement *rtspsrc, GstPad *pad, gpointer user_data)
+{
+    GcsRtspPlayer *player = (GcsRtspPlayer *) user_data;
+
+    gst_element_link_many(player->source, player->depay, player->container,
+        player->sink, NULL);
+
+    GSTREAMER_DUMP_GRAPH(player->pipeline, "mygraph");
+}
+
 GcsRtspPlayer *
 gcs_rtsp_player_new(const char *rtsp_url)
 {
     GcsRtspPlayer *player = ALLOC_NULL(GcsRtspPlayer *, sizeof(GcsRtspPlayer));
 
-    player->pipeline = gst_parse_launch(
-        "rtspsrc name=source ! rtph264depay name=depay ! h264parse name=parser \
-        ! avdec_h264 name=decoder ! xvimagesink name=sink",
-        NULL);
+    /*
+        rtspsrc ! rtph264depay ! bin(h254parse ! avdec_h264) ! xvimagesink
+     */
 
-    if(!player->pipeline) {
-        fprintf(stderr, "[err] could not parse pipeline description\n");
-    }
+    player->pipeline = gst_pipeline_new(NULL);
+    player->container = gst_bin_new(NULL);
 
-    player->source = gst_bin_get_by_name(GST_BIN(player->pipeline), "source");
-    player->depay = gst_bin_get_by_name(GST_BIN(player->pipeline), "depay");
-    player->parser = gst_bin_get_by_name(GST_BIN(player->pipeline), "parser");
-    player->decoder = gst_bin_get_by_name(GST_BIN(player->pipeline), "decoder");
-    player->sink = gst_bin_get_by_name(GST_BIN(player->pipeline), "sink");
+    player->source = gst_element_factory_make("rtspsrc", "source");
+    player->depay = gst_element_factory_make("rtph264depay", "depay");
+    player->parser = gst_element_factory_make("h264parse", "parser");
+    player->decoder = gst_element_factory_make("avdec_h264", "decoder");
+    player->sink = gst_element_factory_make("xvimagesink", "sink");
+
+    /* build up container bin for the parser and decoder */
+
+    gst_bin_add_many(GST_BIN(player->container), player->parser,
+        player->decoder, NULL);
+
+    gst_element_link(player->parser, player->decoder);
+
+    GstPad *parser_sink_pad = gst_element_get_static_pad(player->parser,
+        "sink");
+
+    GstPad *decoder_src_pad = gst_element_get_static_pad(player->decoder,
+        "src");
+
+    gst_element_add_pad(player->container, gst_ghost_pad_new("sink",
+        parser_sink_pad));
+
+    gst_element_add_pad(player->container, gst_ghost_pad_new("src",
+        decoder_src_pad));
+
+    g_object_unref(parser_sink_pad);
+    g_object_unref(decoder_src_pad);
+
+    /* add all elements to the pipeline */
+
+    gst_bin_add_many(GST_BIN(player->pipeline), player->source,
+        player->depay, player->container, player->sink, NULL);
+
+    /* rtspsrc has dynamic pads, wait for the pads to be created
+    and then perform all the linking of pads */
+    g_signal_connect(player->source, "pad-added",
+        G_CALLBACK(on_rtspsrc_pad_added), player);
+
+    /* set options and hook up signals */
 
     g_object_set(player->source, "location", rtsp_url, NULL);
 
     g_signal_connect(player->source, "message-received",
         G_CALLBACK(on_rtsp_message_received), player);
-
-    g_signal_connect(player->source, "message-sent",
-        G_CALLBACK(on_rtsp_message_sent), player);
 
     return player;
 }
