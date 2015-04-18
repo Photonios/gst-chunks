@@ -8,6 +8,8 @@
 #include <gcs/player.h>
 #include <gcs/gst.h>
 
+//#define GCS_PLAYER_SKIP_GAPS 1
+
 /* prototype declarations */
 static int gcs_player_prepare_next_bin(GcsPlayer *player, int play);
 static int gcs_player_get_next_bin_index(GcsPlayer *player);
@@ -155,6 +157,13 @@ static GcsChunk *
 gcs_player_get_next_chunk(GcsPlayer *player)
 {
     GcsChunk *chunk = gcs_index_iterator_next(player->index_itr);
+
+#if defined(GCS_PLAYER_SKIP_GAPS)
+    if(gcs_chunk_is_gap(chunk)) {
+        return gcs_player_get_next_chunk(player);
+    }
+#endif
+
     return chunk;
 }
 
