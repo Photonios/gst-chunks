@@ -1,0 +1,25 @@
+Argus playback, design and techniques
+--------------------------------------------------------------------------------
+Playback, one of the most essential and complex pieces in the Argus architecture.
+Without it, the product would be worthless. It's not a out-of-the-box solution
+from a third-party and certainly not something you can easily find on the internet.
+
+Before we get into all the technical bits, let's establish some ground rules:
+
+  - Assume recorded data is encoded with H.264 muxed into Matroska files.
+  - Assume recorded data is split up into multiple files.
+  - Assume recorded data is of variable duration.
+  - Assume recorded data pieces (files) are playable individually.
+  - Assume the primary method of transport is RTSP/RTP over TCP.
+  - Assume that the solution must support GPU accelerated decoding.
+  - Assume that the data could be trans coded on transport.
+  - Assume that playback must be possible in a browser.
+  - Assume that the operating system can be Windows/Linux (x86/x64/ARM).
+  - Assume that backwards playback must be possible.
+  - Assume that playback at a higher frame rate must be possible.
+  - Assume that seeking to arbitrary times must be possible.
+
+Before we even started writing a single line of code, the choice was made to
+use gstreamer as our go-to framework for everything related to recording and
+playing back media.  Our solution, therefor is heavily gstreamer based.
+Although such a have dependency comes at a price, it's worth it in our case.
