@@ -25,6 +25,7 @@ typedef struct {
 typedef struct {
     GcsChunkServer *server;
     GstRTSPContext *context;
+    GstRTSPClient *client;
     GcsPlayer *player;
 } GcsChunkServerClient;
 
@@ -69,7 +70,14 @@ gcs_chunk_server_client_send_switch_message(GcsChunkServerClient *client)
     GstRTSPMessage *message;
     gst_rtsp_message_new_request(&message, GST_RTSP_OPTIONS, "switch");
 
-    gst_rtsp_client_send_message(client->context->client,
+    if(!GST_IS_RTSP_CLIENT(client->client)) {
+        printf("HUH CLIENT IS NOT CLIENT\n");
+        if(client->context->client == NULL) {
+            printf("HUH CLIENT IS NULL\n");
+        }
+    }
+
+    gst_rtsp_client_send_message(client->client,
         client->context->session, message);
 
     gst_rtsp_message_free(message);
@@ -226,6 +234,8 @@ on_client_connected(GstRTSPServer *rtsp_server, GstRTSPClient *rtsp_client,
     we can keep references to important gstreamer structures */
     GcsChunkServerClient *client = gcs_chunk_server_new_client(
         server);
+
+    client->client = rtsp_client;
 
     /* wait for the options request from the client, which is the
     first RTSP command that is send by the client */

@@ -8,7 +8,7 @@
 #include <gcs/player.h>
 #include <gcs/gst.h>
 
-//#define GCS_PLAYER_SKIP_GAPS 1
+#define GCS_PLAYER_SKIP_GAPS 1
 
 /* prototype declarations */
 static int gcs_player_prepare_next_bin(GcsPlayer *player, int play);
